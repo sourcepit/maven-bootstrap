@@ -4,9 +4,9 @@
 
 	<parent>
 		<groupId>org.sourcepit.tools</groupId>
-		<artifactId>srcpit-tools-parent</artifactId>
+		<artifactId>tools-parent</artifactId>
 		<version>1-SNAPSHOT</version>
-		<relativePath>../srcpit-tools-parent</relativePath>
+		<relativePath>../tools-parent</relativePath>
 	</parent>
 
 	<artifactId>maven-wrapper</artifactId>
