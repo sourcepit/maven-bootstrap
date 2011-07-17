@@ -13,6 +13,10 @@
 	<version>0.1.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
+	<scm>
+		<connection>scm:svn:${srcpit.tools.svn.trunk.url}/maven-wrapper</connection>
+	</scm>
+
 	<modules>
 		<module>maven-wrapper-extension</module>
 		<module>maven-wrapper-api</module>
