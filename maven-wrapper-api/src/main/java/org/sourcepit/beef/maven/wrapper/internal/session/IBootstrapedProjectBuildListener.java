@@ -6,9 +6,9 @@ package org.sourcepit.beef.maven.wrapper.internal.session;
 
 import org.apache.maven.project.MavenProject;
 
-public interface IBootstrapedMavenProjectBuildListener
+public interface IBootstrapedProjectBuildListener
 {
-   void beforeMavenBuild(MavenProject bootstrapProject);
+   void beforeProjectBuild(MavenProject bootstrapProject);
 
-   void afterMavenBuild(MavenProject bootstrapProject);
+   void afterProjectBuild(MavenProject bootstrapProject);
 }

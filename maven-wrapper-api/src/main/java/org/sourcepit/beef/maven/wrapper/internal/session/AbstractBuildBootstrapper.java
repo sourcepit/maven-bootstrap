@@ -56,7 +56,7 @@ public abstract class AbstractBuildBootstrapper implements ISessionListener
       final List<MavenProject> projects = build(session, modelSources);
       try
       {
-         invoke("beforeMavenBuild", projects);
+         invoke("beforeProjectBuild", projects);
       }
       finally
       {
@@ -97,7 +97,7 @@ public abstract class AbstractBuildBootstrapper implements ISessionListener
    {
       try
       {
-         invoke("afterMavenBuild", projects);
+         invoke("afterProjectBuild", projects);
       }
       catch (MavenExecutionException e)
       {
@@ -175,7 +175,7 @@ public abstract class AbstractBuildBootstrapper implements ISessionListener
 
    private List<Object> getBuildwrappers(MavenProject project)
    {
-      final String fqn = "org.sourcepit.beef.maven.wrapper.internal.session.IBootstrapedMavenProjectBuildListener";
+      final String fqn = "org.sourcepit.beef.maven.wrapper.internal.session.IBootstrapedProjectBuildListener";
 
       @SuppressWarnings("unchecked")
       List<Object> wrappers = (List<Object>) project.getContextValue(fqn);
