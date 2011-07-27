@@ -4,6 +4,7 @@
 
 package org.sourcepit.beef.maven.wrapper.internal.session;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -230,6 +231,8 @@ public abstract class AbstractBuildBootstrapper implements ISessionListener
          {
             final ProjectBuildingResult result = projectBuilder.build(modelSource, projectBuildingRequest);
             final MavenProject project = result.getProject();
+            // TODO bernd assert location not null
+            project.setFile(new File(modelSource.getLocation()));
             projects.add(project);
          }
          catch (ProjectBuildingException e)
