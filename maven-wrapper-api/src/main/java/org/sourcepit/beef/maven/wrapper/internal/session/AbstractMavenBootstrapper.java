@@ -51,13 +51,16 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
    private AtomicBoolean isDisposed = new AtomicBoolean(false);
 
+   private BootstrapSession bootstrapSession;
+
    public void sessionAboutToStart(MavenSession session) throws MavenExecutionException
    {
       final List<ModelSource> modelSources = createWrapperProjectsModelSources(session);
       final List<MavenProject> wrapperProjects = createWrapperProjects(session, modelSources);
+      bootstrapSession = new BootstrapSession(wrapperProjects);
       try
       {
-         invoke("beforeProjectBuild", wrapperProjects);
+         invoke("beforeProjectBuild", bootstrapSession);
       }
       finally
       {
@@ -98,7 +101,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    {
       try
       {
-         invoke("afterProjectBuild", projects);
+         invoke("afterProjectBuild", bootstrapSession);
       }
       catch (MavenExecutionException e)
       {
@@ -126,15 +129,16 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       projectRealmCache.flush();
    }
 
-   private void invoke(String methodName, final List<MavenProject> projects) throws MavenExecutionException
+   private void invoke(String methodName, BootstrapSession session) throws MavenExecutionException
    {
-      for (MavenProject project : projects)
+      for (MavenProject project : session.getWrapperProjects())
       {
-         invoke(methodName, project);
+         invoke(methodName, session, project);
       }
    }
 
-   private void invoke(String methodName, final MavenProject project) throws MavenExecutionException
+   private void invoke(String methodName, final BootstrapSession session, final MavenProject project)
+      throws MavenExecutionException
    {
       final ClassLoader projectRealm = project.getClassRealm();
       if (projectRealm != null)
@@ -148,12 +152,13 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
             {
                try
                {
-                  final Method method = buildwrapper.getClass().getMethod(methodName, project.getClass());
+                  final Method method = buildwrapper.getClass().getMethod(methodName, BootstrapSession.class,
+                     MavenProject.class);
 
                   logger.info("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
                      + project.getName() + "'");
 
-                  method.invoke(buildwrapper, project);
+                  method.invoke(buildwrapper, session, project);
                }
                catch (InvocationTargetException e)
                {
@@ -176,7 +181,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
    private List<Object> getBuildwrappers(MavenProject project)
    {
-      final String fqn = "org.sourcepit.beef.maven.wrapper.internal.session.IBootstrapedProjectBuildListener";
+      final String fqn = IMavenBootstrapperListener.class.getName();
 
       @SuppressWarnings("unchecked")
       List<Object> wrappers = (List<Object>) project.getContextValue(fqn);

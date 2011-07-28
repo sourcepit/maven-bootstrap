@@ -8,7 +8,7 @@ import org.apache.maven.project.MavenProject;
 
 public interface IMavenBootstrapperListener
 {
-   void beforeProjectBuild(MavenProject wrapperProject);
+   void beforeProjectBuild(BootstrapSession session, MavenProject wrapperProject);
 
-   void afterProjectBuild(MavenProject wrapperProject);
+   void afterProjectBuild(BootstrapSession session, MavenProject wrapperProject);
 }
