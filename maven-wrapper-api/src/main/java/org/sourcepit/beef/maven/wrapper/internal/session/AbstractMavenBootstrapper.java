@@ -33,7 +33,7 @@ import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
 
-public abstract class AbstractBuildBootstrapper implements ISessionListener
+public abstract class AbstractMavenBootstrapper implements ISessionListener
 {
    private final Map<Thread, List<MavenProject>> threadToProjects = new LinkedHashMap<Thread, List<MavenProject>>();
 
@@ -53,31 +53,31 @@ public abstract class AbstractBuildBootstrapper implements ISessionListener
 
    public void sessionAboutToStart(MavenSession session) throws MavenExecutionException
    {
-      final List<ModelSource> modelSources = createBootstrapModelSources(session);
-      final List<MavenProject> projects = build(session, modelSources);
+      final List<ModelSource> modelSources = createWrapperProjectsModelSources(session);
+      final List<MavenProject> wrapperProjects = createWrapperProjects(session, modelSources);
       try
       {
-         invoke("beforeProjectBuild", projects);
+         invoke("beforeProjectBuild", wrapperProjects);
       }
       finally
       {
-         disposeProjectRealms(projects);
+         disposeProjectRealms(wrapperProjects);
       }
-      afterBootstrapProjectsBuild(session, projects);
+      afterWrapperProjectsInitialized(session, wrapperProjects);
    }
 
-   protected abstract void afterBootstrapProjectsBuild(MavenSession session, List<MavenProject> projects)
+   protected abstract void afterWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
       throws MavenExecutionException;
 
-   protected abstract List<ModelSource> createBootstrapModelSources(MavenSession session)
+   protected abstract List<ModelSource> createWrapperProjectsModelSources(MavenSession session)
       throws MavenExecutionException;
 
    public void sessionEnded()
    {
-      final List<MavenProject> project = threadToProjects.remove(Thread.currentThread());
-      if (project != null)
+      final List<MavenProject> wrapperProject = threadToProjects.remove(Thread.currentThread());
+      if (wrapperProject != null)
       {
-         sessionEnded(project);
+         sessionEnded(wrapperProject);
       }
    }
 
@@ -204,7 +204,7 @@ public abstract class AbstractBuildBootstrapper implements ISessionListener
       return wrappers;
    }
 
-   private List<MavenProject> build(MavenSession session, List<ModelSource> modelSources)
+   private List<MavenProject> createWrapperProjects(MavenSession session, List<ModelSource> modelSources)
       throws MavenExecutionException
    {
       MavenExecutionRequest r = session.getRequest();
