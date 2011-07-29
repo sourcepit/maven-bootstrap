@@ -7,13 +7,11 @@ package org.sourcepit.beef.maven.wrapper.internal.session;
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenExecutionRequest;
@@ -27,6 +25,7 @@ import org.apache.maven.project.ProjectBuildingResult;
 import org.apache.maven.project.ProjectRealmCache;
 import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.classworlds.ClassWorld;
+import org.codehaus.plexus.classworlds.ClassWorldListener;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
 import org.codehaus.plexus.classworlds.realm.NoSuchRealmException;
 import org.codehaus.plexus.component.annotations.Requirement;
@@ -49,12 +48,15 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    @Requirement
    private ProjectRealmCache projectRealmCache;
 
-   private AtomicBoolean isDisposed = new AtomicBoolean(false);
+   private final BootstrapSessionClassLoader bootstrapSessionClassLoader = new BootstrapSessionClassLoader();
 
    private BootstrapSession bootstrapSession;
 
    public void sessionAboutToStart(MavenSession session) throws MavenExecutionException
    {
+      plexusContainer.getContainerRealm().getWorld().addListener(bootstrapSessionClassLoader);
+
+      // plexusContainer.getContainerRealm().getWorld().
       final List<ModelSource> modelSources = createWrapperProjectsModelSources(session);
       final List<MavenProject> wrapperProjects = createWrapperProjects(session, modelSources);
       bootstrapSession = new BootstrapSession(wrapperProjects);
@@ -82,19 +84,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       {
          sessionEnded(wrapperProject);
       }
-   }
-
-   public void dispose()
-   {
-      if (isDisposed.compareAndSet(false, true))
-      {
-         final Set<Entry<Thread, List<MavenProject>>> entrySet = threadToProjects.entrySet();
-         threadToProjects.clear();
-         for (Entry<Thread, List<MavenProject>> entry : entrySet)
-         {
-            sessionEnded(entry.getValue());
-         }
-      }
+      plexusContainer.getContainerRealm().getWorld().removeListener(bootstrapSessionClassLoader);
    }
 
    private void sessionEnded(List<MavenProject> projects)
@@ -253,5 +243,38 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       threadToProjects.put(Thread.currentThread(), projects);
 
       return projects;
+   }
+
+   private final static class BootstrapSessionClassLoader extends ClassLoader implements ClassWorldListener
+   {
+      private final static String PKG_PREFIX = BootstrapSession.class.getName().substring(0,
+         BootstrapSession.class.getName().lastIndexOf('.'))
+         + ".*";
+
+      @Override
+      public Class<?> loadClass(String name) throws ClassNotFoundException
+      {
+         if (BootstrapSession.class.getName().equals(name))
+         {
+            return BootstrapSession.class;
+         }
+         return super.loadClass(name);
+      }
+
+      @Override
+      public URL getResource(String name)
+      {
+         return null;
+      }
+
+      public void realmCreated(ClassRealm realm)
+      {
+         realm.importFrom(this, PKG_PREFIX);
+      }
+
+      public void realmDisposed(ClassRealm realm)
+      {
+
+      }
    }
 }
