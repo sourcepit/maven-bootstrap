@@ -16,7 +16,6 @@ import java.util.Map;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.model.building.ModelSource;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuilder;
@@ -57,8 +56,8 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       plexusContainer.getContainerRealm().getWorld().addListener(bootstrapSessionClassLoader);
 
       // plexusContainer.getContainerRealm().getWorld().
-      final List<ModelSource> modelSources = createWrapperProjectsModelSources(session);
-      final List<MavenProject> wrapperProjects = createWrapperProjects(session, modelSources);
+      final List<File> descriptors = getModuleDescriptors(session);
+      final List<MavenProject> wrapperProjects = createWrapperProjects(session, descriptors);
       bootstrapSession = new BootstrapSession(wrapperProjects);
       try
       {
@@ -74,8 +73,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    protected abstract void afterWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
       throws MavenExecutionException;
 
-   protected abstract List<ModelSource> createWrapperProjectsModelSources(MavenSession session)
-      throws MavenExecutionException;
+   protected abstract List<File> getModuleDescriptors(MavenSession session) throws MavenExecutionException;
 
    public void sessionEnded()
    {
@@ -199,7 +197,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       return wrappers;
    }
 
-   private List<MavenProject> createWrapperProjects(MavenSession session, List<ModelSource> modelSources)
+   private List<MavenProject> createWrapperProjects(MavenSession session, List<File> descriptors)
       throws MavenExecutionException
    {
       MavenExecutionRequest r = session.getRequest();
@@ -219,15 +217,13 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       projectBuildingRequest.setRepositorySession(session.getRepositorySession());
       projectBuildingRequest.setResolveDependencies(true);
 
-      final List<MavenProject> projects = new ArrayList<MavenProject>(modelSources.size());
-      for (ModelSource modelSource : modelSources)
+      final List<MavenProject> projects = new ArrayList<MavenProject>(descriptors.size());
+      for (File descriptor : descriptors)
       {
          try
          {
-            final ProjectBuildingResult result = projectBuilder.build(modelSource, projectBuildingRequest);
+            final ProjectBuildingResult result = projectBuilder.build(descriptor, projectBuildingRequest);
             final MavenProject project = result.getProject();
-            // TODO bernd assert location not null
-            project.setFile(new File(modelSource.getLocation()));
             projects.add(project);
          }
          catch (ProjectBuildingException e)
