@@ -59,6 +59,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       final List<File> descriptors = getModuleDescriptors(session);
       final List<MavenProject> wrapperProjects = createWrapperProjects(session, descriptors);
       bootstrapSession = new BootstrapSession(wrapperProjects);
+      beforeWrapperProjectsInitialized(session, wrapperProjects);
       try
       {
          invoke("beforeProjectBuild", bootstrapSession);
@@ -69,6 +70,9 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       }
       afterWrapperProjectsInitialized(session, wrapperProjects);
    }
+   
+   protected abstract void beforeWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
+      throws MavenExecutionException;
 
    protected abstract void afterWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
       throws MavenExecutionException;
