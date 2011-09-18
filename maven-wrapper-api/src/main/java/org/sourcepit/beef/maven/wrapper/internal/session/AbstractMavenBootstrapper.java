@@ -125,6 +125,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    {
       for (MavenProject project : session.getWrapperProjects())
       {
+         session.setCurrentProject(project);
          invoke(methodName, session, project);
       }
    }

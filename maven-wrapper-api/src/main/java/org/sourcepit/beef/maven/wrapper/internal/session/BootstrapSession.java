@@ -14,12 +14,24 @@ import org.apache.maven.project.MavenProject;
 public class BootstrapSession
 {
    private final List<MavenProject> wrapperProjects;
+   
+   private MavenProject currentProject;
 
    private final Map<String, Object> keyToDataMap = new HashMap<String, Object>();
 
    public BootstrapSession(List<MavenProject> wrapperProjects)
    {
       this.wrapperProjects = wrapperProjects;
+   }
+   
+   public void setCurrentProject(MavenProject currentProject)
+   {
+      this.currentProject = currentProject;
+   }
+   
+   public MavenProject getCurrentProject()
+   {
+      return currentProject;
    }
 
    public List<MavenProject> getWrapperProjects()
