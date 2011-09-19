@@ -9,7 +9,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -55,10 +58,13 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    {
       plexusContainer.getContainerRealm().getWorld().addListener(bootstrapSessionClassLoader);
 
-      // plexusContainer.getContainerRealm().getWorld().
-      final List<File> descriptors = getModuleDescriptors(session);
+      final Collection<File> descriptors = new LinkedHashSet<File>();
+      final Collection<File> skippedDescriptors = new HashSet<File>();
+      getModuleDescriptors(session, descriptors, skippedDescriptors);
+
       final List<MavenProject> wrapperProjects = createWrapperProjects(session, descriptors);
-      bootstrapSession = new BootstrapSession(wrapperProjects);
+      bootstrapSession = new BootstrapSession(wrapperProjects, skippedDescriptors);
+
       beforeWrapperProjectsInitialized(session, wrapperProjects);
       try
       {
@@ -70,14 +76,15 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       }
       afterWrapperProjectsInitialized(session, wrapperProjects);
    }
-   
+
    protected abstract void beforeWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
       throws MavenExecutionException;
 
    protected abstract void afterWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
       throws MavenExecutionException;
 
-   protected abstract List<File> getModuleDescriptors(MavenSession session) throws MavenExecutionException;
+   protected abstract void getModuleDescriptors(MavenSession session, Collection<File> descriptors,
+      Collection<File> skippedDescritors) throws MavenExecutionException;
 
    public void sessionEnded()
    {
@@ -123,7 +130,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
    private void invoke(String methodName, BootstrapSession session) throws MavenExecutionException
    {
-      for (MavenProject project : session.getWrapperProjects())
+      for (MavenProject project : session.getBootstrapProjects())
       {
          session.setCurrentProject(project);
          invoke(methodName, session, project);
@@ -202,7 +209,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       return wrappers;
    }
 
-   private List<MavenProject> createWrapperProjects(MavenSession session, List<File> descriptors)
+   private List<MavenProject> createWrapperProjects(MavenSession session, Collection<File> descriptors)
       throws MavenExecutionException
    {
       MavenExecutionRequest r = session.getRequest();

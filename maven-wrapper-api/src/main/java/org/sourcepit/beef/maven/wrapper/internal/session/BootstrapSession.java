@@ -4,6 +4,8 @@
 
 package org.sourcepit.beef.maven.wrapper.internal.session;
 
+import java.io.File;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -14,29 +16,37 @@ import org.apache.maven.project.MavenProject;
 public class BootstrapSession
 {
    private final List<MavenProject> wrapperProjects;
-   
+
+   private final Collection<File> skippedDescriptors;
+
    private MavenProject currentProject;
 
    private final Map<String, Object> keyToDataMap = new HashMap<String, Object>();
 
-   public BootstrapSession(List<MavenProject> wrapperProjects)
+   public BootstrapSession(List<MavenProject> wrapperProjects, Collection<File> skippedDescriptors)
    {
       this.wrapperProjects = wrapperProjects;
+      this.skippedDescriptors = skippedDescriptors;
    }
-   
+
    public void setCurrentProject(MavenProject currentProject)
    {
       this.currentProject = currentProject;
    }
-   
+
    public MavenProject getCurrentProject()
    {
       return currentProject;
    }
 
-   public List<MavenProject> getWrapperProjects()
+   public List<MavenProject> getBootstrapProjects()
    {
       return Collections.unmodifiableList(wrapperProjects);
+   }
+
+   public boolean isSkipped(MavenProject project)
+   {
+      return skippedDescriptors.contains(project.getFile());
    }
 
    public Object getData(String key)
