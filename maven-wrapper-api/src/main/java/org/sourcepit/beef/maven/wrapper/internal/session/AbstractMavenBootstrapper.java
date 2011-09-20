@@ -62,7 +62,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       final Collection<File> skippedDescriptors = new HashSet<File>();
       getModuleDescriptors(session, descriptors, skippedDescriptors);
 
-      final List<MavenProject> wrapperProjects = createWrapperProjects(session, descriptors);
+      final List<MavenProject> wrapperProjects = createWrapperProjects(session, descriptors, skippedDescriptors);
       bootstrapSession = new BootstrapSession(wrapperProjects, skippedDescriptors);
 
       beforeWrapperProjectsInitialized(session, wrapperProjects);
@@ -209,8 +209,8 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       return wrappers;
    }
 
-   private List<MavenProject> createWrapperProjects(MavenSession session, Collection<File> descriptors)
-      throws MavenExecutionException
+   private List<MavenProject> createWrapperProjects(MavenSession session, Collection<File> descriptors,
+      Collection<File> skippedDescriptors) throws MavenExecutionException
    {
       MavenExecutionRequest r = session.getRequest();
 
@@ -232,6 +232,12 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       final List<MavenProject> projects = new ArrayList<MavenProject>(descriptors.size());
       for (File descriptor : descriptors)
       {
+         if (skippedDescriptors.contains(descriptor))
+         {
+            logger.info("Skipping module descriptor " + descriptor.getPath());
+            continue;
+         }
+
          try
          {
             final ProjectBuildingResult result = projectBuilder.build(descriptor, projectBuildingRequest);

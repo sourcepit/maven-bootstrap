@@ -43,10 +43,10 @@ public class BootstrapSession
    {
       return Collections.unmodifiableList(wrapperProjects);
    }
-
-   public boolean isSkipped(MavenProject project)
+   
+   public Collection<File> getSkippedDescriptors()
    {
-      return skippedDescriptors.contains(project.getFile());
+      return Collections.unmodifiableCollection(skippedDescriptors);
    }
 
    public Object getData(String key)
