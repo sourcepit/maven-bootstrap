@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.MavenExecutionException;
-import org.apache.maven.execution.DefaultMavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
@@ -38,7 +37,14 @@ import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.dag.CycleDetectedException;
+import org.sonatype.aether.AbstractRepositoryListener;
+import org.sonatype.aether.RepositoryEvent;
+import org.sonatype.aether.RepositoryListener;
+import org.sonatype.aether.artifact.Artifact;
+import org.sonatype.aether.repository.ArtifactRepository;
+import org.sonatype.aether.repository.WorkspaceReader;
 import org.sonatype.aether.util.DefaultRepositorySystemSession;
+import org.sonatype.aether.util.listener.ChainedRepositoryListener;
 
 public abstract class AbstractMavenBootstrapper implements ISessionListener
 {
@@ -74,7 +80,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       beforeWrapperProjectsInitialized(session, wrapperProjects);
       try
       {
-         invoke("beforeProjectBuild", bootstrapSession);
+         invoke("beforeProjectBuild", bootstrapSession, true);
       }
       finally
       {
@@ -106,7 +112,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    {
       try
       {
-         invoke("afterProjectBuild", bootstrapSession);
+         invoke("afterProjectBuild", bootstrapSession, false);
       }
       catch (MavenExecutionException e)
       {
@@ -134,11 +140,24 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       projectRealmCache.flush();
    }
 
-   private void invoke(String methodName, BootstrapSession session) throws MavenExecutionException
+   private void invoke(String methodName, BootstrapSession session, boolean resolveDependencies)
+      throws MavenExecutionException
    {
+      WorkspaceReader reactorReader = null;
+
       for (MavenProject project : session.getBootstrapProjects())
       {
          session.setCurrentProject(project);
+
+         if (resolveDependencies)
+         {
+            if (reactorReader == null)
+            {
+               reactorReader = new ReactorReader(ReactorReader.getProjectMap(session.getBootstrapProjects()));
+            }
+            resolveDependencies(project, reactorReader);
+         }
+
          invoke(methodName, session, project);
       }
    }
@@ -275,29 +294,6 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       }
 
       final List<MavenProject> sortedProjects = projectSorter.getSortedProjects();
-
-      ReactorReader reactorReader = new ReactorReader(ReactorReader.getProjectMap(projects));
-      ((DefaultRepositorySystemSession) projectBuildingRequest.getRepositorySession())
-         .setWorkspaceReader(reactorReader);
-
-
-      for (MavenProject mavenProject : sortedProjects)
-      {
-         try
-         {
-            projectBuildingRequest.setProject(mavenProject);
-
-            ProjectBuildingResult result = projectBuilder.build(mavenProject.getFile(), projectBuildingRequest);
-            System.out.println();
-         }
-         catch (ProjectBuildingException e)
-         {
-            throw new IllegalStateException(e);
-         }
-      }
-      projectBuildingRequest.setProject(null);
-      ((DefaultRepositorySystemSession) projectBuildingRequest.getRepositorySession()).setWorkspaceReader(null);
-
       if (threadToProjects.containsKey(Thread.currentThread()))
       {
          throw new IllegalStateException();
@@ -305,6 +301,50 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       threadToProjects.put(Thread.currentThread(), sortedProjects);
 
       return sortedProjects;
+   }
+
+   private void resolveDependencies(MavenProject mavenProject, WorkspaceReader reactorReader)
+   {
+      final ProjectBuildingRequest request = mavenProject.getProjectBuildingRequest();
+      DefaultRepositorySystemSession repoSession = (DefaultRepositorySystemSession) request.getRepositorySession();
+
+      RepositoryListener repositoryListener = repoSession.getRepositoryListener();
+
+      ChainedRepositoryListener chainedRepositoryListener = new ChainedRepositoryListener();
+      chainedRepositoryListener.add(repositoryListener);
+      chainedRepositoryListener.add(new AbstractRepositoryListener()
+      {
+         @Override
+         public void artifactDownloaded(RepositoryEvent event)
+         {
+            if (event.getException() == null)
+            {
+               Artifact artifact = event.getArtifact();
+               
+               ArtifactRepository repository = event.getRepository();
+            }
+         }
+      });
+      
+      repoSession.setRepositoryListener(chainedRepositoryListener);
+
+      try
+      {
+         repoSession.setWorkspaceReader(reactorReader);
+         request.setProject(mavenProject);
+
+         projectBuilder.build(mavenProject.getFile(), request);
+      }
+      catch (ProjectBuildingException e)
+      {
+         throw new IllegalStateException(e);
+      }
+      finally
+      {
+         request.setProject(null);
+         repoSession.setWorkspaceReader(null);
+         repoSession.setRepositoryListener(repositoryListener);
+      }
    }
 
    private final static class BootstrapSessionClassLoader extends ClassLoader implements ClassWorldListener
