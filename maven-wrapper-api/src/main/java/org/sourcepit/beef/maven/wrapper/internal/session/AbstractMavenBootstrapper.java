@@ -17,14 +17,18 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.MavenExecutionException;
+import org.apache.maven.execution.DefaultMavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
+import org.apache.maven.project.DuplicateProjectException;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingException;
+import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.project.ProjectBuildingResult;
 import org.apache.maven.project.ProjectRealmCache;
+import org.apache.maven.project.ProjectSorter;
 import org.codehaus.plexus.PlexusContainer;
 import org.codehaus.plexus.classworlds.ClassWorld;
 import org.codehaus.plexus.classworlds.ClassWorldListener;
@@ -33,6 +37,8 @@ import org.codehaus.plexus.classworlds.realm.NoSuchRealmException;
 import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
+import org.codehaus.plexus.util.dag.CycleDetectedException;
+import org.sonatype.aether.util.DefaultRepositorySystemSession;
 
 public abstract class AbstractMavenBootstrapper implements ISessionListener
 {
@@ -212,24 +218,23 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    private List<MavenProject> createWrapperProjects(MavenSession session, Collection<File> descriptors,
       Collection<File> skippedDescriptors) throws MavenExecutionException
    {
-      MavenExecutionRequest r = session.getRequest();
+      final MavenExecutionRequest execRequest = session.getRequest();
 
-      DefaultProjectBuildingRequest projectBuildingRequest = new DefaultProjectBuildingRequest();
-      projectBuildingRequest = new DefaultProjectBuildingRequest();
-      projectBuildingRequest.setLocalRepository(r.getLocalRepository());
-      projectBuildingRequest.setSystemProperties(r.getSystemProperties());
-      projectBuildingRequest.setUserProperties(r.getUserProperties());
-      projectBuildingRequest.setRemoteRepositories(r.getRemoteRepositories());
-      projectBuildingRequest.setPluginArtifactRepositories(r.getPluginArtifactRepositories());
-      projectBuildingRequest.setActiveProfileIds(r.getActiveProfiles());
-      projectBuildingRequest.setInactiveProfileIds(r.getInactiveProfiles());
-      projectBuildingRequest.setProfiles(r.getProfiles());
+      final DefaultProjectBuildingRequest projectBuildingRequest = new DefaultProjectBuildingRequest();
+      projectBuildingRequest.setLocalRepository(execRequest.getLocalRepository());
+      projectBuildingRequest.setSystemProperties(execRequest.getSystemProperties());
+      projectBuildingRequest.setUserProperties(execRequest.getUserProperties());
+      projectBuildingRequest.setRemoteRepositories(execRequest.getRemoteRepositories());
+      projectBuildingRequest.setPluginArtifactRepositories(execRequest.getPluginArtifactRepositories());
+      projectBuildingRequest.setActiveProfileIds(execRequest.getActiveProfiles());
+      projectBuildingRequest.setInactiveProfileIds(execRequest.getInactiveProfiles());
+      projectBuildingRequest.setProfiles(execRequest.getProfiles());
       projectBuildingRequest.setProcessPlugins(true);
-      projectBuildingRequest.setBuildStartTime(r.getStartTime());
+      projectBuildingRequest.setBuildStartTime(execRequest.getStartTime());
       projectBuildingRequest.setRepositorySession(session.getRepositorySession());
       projectBuildingRequest.setResolveDependencies(true);
 
-      final List<MavenProject> projects = new ArrayList<MavenProject>(descriptors.size());
+      final List<File> pomFiles = new ArrayList<File>();
       for (File descriptor : descriptors)
       {
          if (skippedDescriptors.contains(descriptor))
@@ -237,26 +242,69 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
             logger.info("Skipping module descriptor " + descriptor.getPath());
             continue;
          }
+         pomFiles.add(descriptor);
+      }
 
+      final List<ProjectBuildingResult> results;
+      try
+      {
+         results = projectBuilder.build(pomFiles, false, projectBuildingRequest);
+      }
+      catch (ProjectBuildingException e)
+      {
+         throw new MavenExecutionException("Cannot build bootstrapper project for " + e.getPomFile(), e);
+      }
+
+      final List<MavenProject> projects = new ArrayList<MavenProject>(results.size());
+      for (ProjectBuildingResult result : results)
+      {
+         projects.add(result.getProject());
+      }
+      final ProjectSorter projectSorter;
+      try
+      {
+         projectSorter = new ProjectSorter(projects);
+      }
+      catch (CycleDetectedException e)
+      {
+         throw new IllegalStateException(e);
+      }
+      catch (DuplicateProjectException e)
+      {
+         throw new IllegalStateException(e);
+      }
+
+      final List<MavenProject> sortedProjects = projectSorter.getSortedProjects();
+
+      ReactorReader reactorReader = new ReactorReader(ReactorReader.getProjectMap(projects));
+      ((DefaultRepositorySystemSession) projectBuildingRequest.getRepositorySession())
+         .setWorkspaceReader(reactorReader);
+
+
+      for (MavenProject mavenProject : sortedProjects)
+      {
          try
          {
-            final ProjectBuildingResult result = projectBuilder.build(descriptor, projectBuildingRequest);
-            final MavenProject project = result.getProject();
-            projects.add(project);
+            projectBuildingRequest.setProject(mavenProject);
+
+            ProjectBuildingResult result = projectBuilder.build(mavenProject.getFile(), projectBuildingRequest);
+            System.out.println();
          }
          catch (ProjectBuildingException e)
          {
-            throw new MavenExecutionException("Cannot build bootstrapper project for " + e.getPomFile(), e);
+            throw new IllegalStateException(e);
          }
       }
+      projectBuildingRequest.setProject(null);
+      ((DefaultRepositorySystemSession) projectBuildingRequest.getRepositorySession()).setWorkspaceReader(null);
 
       if (threadToProjects.containsKey(Thread.currentThread()))
       {
          throw new IllegalStateException();
       }
-      threadToProjects.put(Thread.currentThread(), projects);
+      threadToProjects.put(Thread.currentThread(), sortedProjects);
 
-      return projects;
+      return sortedProjects;
    }
 
    private final static class BootstrapSessionClassLoader extends ClassLoader implements ClassWorldListener
