@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -19,6 +20,7 @@ import java.util.Map;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.Repository;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
 import org.apache.maven.project.DuplicateProjectException;
 import org.apache.maven.project.MavenProject;
@@ -42,6 +44,7 @@ import org.sonatype.aether.RepositoryEvent;
 import org.sonatype.aether.RepositoryListener;
 import org.sonatype.aether.artifact.Artifact;
 import org.sonatype.aether.repository.ArtifactRepository;
+import org.sonatype.aether.repository.RemoteRepository;
 import org.sonatype.aether.repository.WorkspaceReader;
 import org.sonatype.aether.util.DefaultRepositorySystemSession;
 import org.sonatype.aether.util.listener.ChainedRepositoryListener;
@@ -155,7 +158,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
             {
                reactorReader = new ReactorReader(ReactorReader.getProjectMap(session.getBootstrapProjects()));
             }
-            resolveDependencies(project, reactorReader);
+            resolveDependencies(session, project, reactorReader);
          }
 
          invoke(methodName, session, project);
@@ -303,7 +306,8 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       return sortedProjects;
    }
 
-   private void resolveDependencies(MavenProject mavenProject, WorkspaceReader reactorReader)
+   private void resolveDependencies(final BootstrapSession bootSession, MavenProject mavenProject,
+      WorkspaceReader reactorReader)
    {
       final ProjectBuildingRequest request = mavenProject.getProjectBuildingRequest();
       DefaultRepositorySystemSession repoSession = (DefaultRepositorySystemSession) request.getRepositorySession();
@@ -317,15 +321,35 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
          @Override
          public void artifactDownloaded(RepositoryEvent event)
          {
-            if (event.getException() == null)
+            final Artifact artifact = event.getArtifact();
+            final File file = artifact.getFile();
+
+            if (event.getException() == null && file != null && artifact.getFile().exists())
             {
-               Artifact artifact = event.getArtifact();
-               
                ArtifactRepository repository = event.getRepository();
+               if (repository instanceof RemoteRepository)
+               {
+                  final RemoteRepository remoteRepository = (RemoteRepository) repository;
+
+                  final String repoId = remoteRepository.getId();
+                  final String repoUrl = remoteRepository.getUrl();
+
+                  final Repository r = new Repository();
+                  r.setId(repoId);
+                  r.setUrl(repoUrl);
+
+                  Map<File, Repository> fileToRepositoryMap = (Map<File, Repository>) bootSession.getData("downloads");
+                  if (fileToRepositoryMap == null)
+                  {
+                     fileToRepositoryMap = new HashMap<File, Repository>();
+                     bootSession.setData("downloads", fileToRepositoryMap);
+                  }
+                  fileToRepositoryMap.put(file, r);
+               }
             }
          }
       });
-      
+
       repoSession.setRepositoryListener(chainedRepositoryListener);
 
       try

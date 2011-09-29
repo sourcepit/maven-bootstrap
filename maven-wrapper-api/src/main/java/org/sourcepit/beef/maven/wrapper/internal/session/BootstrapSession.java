@@ -43,7 +43,7 @@ public class BootstrapSession
    {
       return Collections.unmodifiableList(wrapperProjects);
    }
-   
+
    public Collection<File> getSkippedDescriptors()
    {
       return Collections.unmodifiableCollection(skippedDescriptors);

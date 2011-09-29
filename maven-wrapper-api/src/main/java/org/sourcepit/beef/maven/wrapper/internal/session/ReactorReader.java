@@ -2,12 +2,6 @@
 package org.sourcepit.beef.maven.wrapper.internal.session;
 
 
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.project.MavenProject;
-import org.sonatype.aether.artifact.Artifact;
-import org.sonatype.aether.repository.WorkspaceReader;
-import org.sonatype.aether.repository.WorkspaceRepository;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,6 +12,12 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.maven.artifact.ArtifactUtils;
+import org.apache.maven.project.MavenProject;
+import org.sonatype.aether.artifact.Artifact;
+import org.sonatype.aether.repository.WorkspaceReader;
+import org.sonatype.aether.repository.WorkspaceRepository;
 
 /**
  * An implementation of a workspace reader that knows how to search the Maven reactor for artifacts.
