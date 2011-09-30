@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.maven.MavenExecutionException;
+import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Repository;
@@ -43,7 +44,6 @@ import org.sonatype.aether.AbstractRepositoryListener;
 import org.sonatype.aether.RepositoryEvent;
 import org.sonatype.aether.RepositoryListener;
 import org.sonatype.aether.artifact.Artifact;
-import org.sonatype.aether.repository.ArtifactRepository;
 import org.sonatype.aether.repository.RemoteRepository;
 import org.sonatype.aether.repository.WorkspaceReader;
 import org.sonatype.aether.util.DefaultRepositorySystemSession;
@@ -246,7 +246,17 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       projectBuildingRequest.setLocalRepository(execRequest.getLocalRepository());
       projectBuildingRequest.setSystemProperties(execRequest.getSystemProperties());
       projectBuildingRequest.setUserProperties(execRequest.getUserProperties());
-      projectBuildingRequest.setRemoteRepositories(execRequest.getRemoteRepositories());
+
+      final List<ArtifactRepository> remoteRepositories = new ArrayList<ArtifactRepository>();
+      for (ArtifactRepository remoteRepository : execRequest.getRemoteRepositories())
+      {
+         if (!"p2".equals(remoteRepository.getLayout().getId()))
+         {
+            remoteRepositories.add(remoteRepository);
+         }
+      }
+      projectBuildingRequest.setRemoteRepositories(remoteRepositories);
+
       projectBuildingRequest.setPluginArtifactRepositories(execRequest.getPluginArtifactRepositories());
       projectBuildingRequest.setActiveProfileIds(execRequest.getActiveProfiles());
       projectBuildingRequest.setInactiveProfileIds(execRequest.getInactiveProfiles());
@@ -280,7 +290,29 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       final List<MavenProject> projects = new ArrayList<MavenProject>(results.size());
       for (ProjectBuildingResult result : results)
       {
-         projects.add(result.getProject());
+         MavenProject project = result.getProject();
+
+         final List<ArtifactRepository> remoteArtifactRepositories = new ArrayList<ArtifactRepository>();
+         for (ArtifactRepository remoteRepository : project.getRemoteArtifactRepositories())
+         {
+            if (!"p2".equals(remoteRepository.getLayout().getId()))
+            {
+               remoteArtifactRepositories.add(remoteRepository);
+            }
+         }
+         project.setRemoteArtifactRepositories(remoteArtifactRepositories);
+
+         final List<ArtifactRepository> remotePluginRepositories = new ArrayList<ArtifactRepository>();
+         for (ArtifactRepository remoteRepository : project.getPluginArtifactRepositories())
+         {
+            if (!"p2".equals(remoteRepository.getLayout().getId()))
+            {
+               remotePluginRepositories.add(remoteRepository);
+            }
+         }
+         project.setPluginArtifactRepositories(remotePluginRepositories);
+
+         projects.add(project);
       }
       final ProjectSorter projectSorter;
       try
@@ -326,10 +358,9 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
             if (event.getException() == null && file != null && artifact.getFile().exists())
             {
-               ArtifactRepository repository = event.getRepository();
-               if (repository instanceof RemoteRepository)
+               if (event.getRepository() instanceof RemoteRepository)
                {
-                  final RemoteRepository remoteRepository = (RemoteRepository) repository;
+                  final RemoteRepository remoteRepository = (RemoteRepository) event.getRepository();
 
                   final String repoId = remoteRepository.getId();
                   final String repoUrl = remoteRepository.getUrl();
@@ -338,6 +369,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
                   r.setId(repoId);
                   r.setUrl(repoUrl);
 
+                  @SuppressWarnings("unchecked")
                   Map<File, Repository> fileToRepositoryMap = (Map<File, Repository>) bootSession.getData("downloads");
                   if (fileToRepositoryMap == null)
                   {
@@ -352,10 +384,32 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
       repoSession.setRepositoryListener(chainedRepositoryListener);
 
+      final List<ArtifactRepository> oldRepos = request.getRemoteRepositories();
+      final List<ArtifactRepository> oldPluginRepos = request.getPluginArtifactRepositories();
       try
       {
          repoSession.setWorkspaceReader(reactorReader);
          request.setProject(mavenProject);
+
+         List<ArtifactRepository> remoteRepositories = new ArrayList<ArtifactRepository>();
+         for (ArtifactRepository remoteRepository : mavenProject.getRemoteArtifactRepositories())
+         {
+            if (!"p2".equals(remoteRepository.getLayout().getId()))
+            {
+               remoteRepositories.add(remoteRepository);
+            }
+         }
+         request.setRemoteRepositories(remoteRepositories);
+
+         remoteRepositories = new ArrayList<ArtifactRepository>();
+         for (ArtifactRepository remoteRepository : mavenProject.getPluginArtifactRepositories())
+         {
+            if (!"p2".equals(remoteRepository.getLayout().getId()))
+            {
+               remoteRepositories.add(remoteRepository);
+            }
+         }
+         request.setPluginArtifactRepositories(remoteRepositories);
 
          projectBuilder.build(mavenProject.getFile(), request);
       }
@@ -366,6 +420,8 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       finally
       {
          request.setProject(null);
+         request.setRemoteRepositories(oldRepos);
+         request.setPluginArtifactRepositories(oldPluginRepos);
          repoSession.setWorkspaceReader(null);
          repoSession.setRepositoryListener(repositoryListener);
       }

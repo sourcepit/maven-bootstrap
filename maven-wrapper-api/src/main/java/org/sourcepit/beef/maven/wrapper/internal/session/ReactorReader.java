@@ -33,7 +33,6 @@ class ReactorReader implements WorkspaceReader
 
    private WorkspaceRepository repository;
 
-   @SuppressWarnings({"ConstantConditions"})
    public ReactorReader(Map<String, MavenProject> reactorProjects)
    {
       projectsByGAV = reactorProjects;
