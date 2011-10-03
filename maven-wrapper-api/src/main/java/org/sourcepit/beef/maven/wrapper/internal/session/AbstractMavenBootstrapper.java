@@ -168,73 +168,65 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    private void invoke(String methodName, final BootstrapSession session, final MavenProject project)
       throws MavenExecutionException
    {
-      final ClassLoader projectRealm = project.getClassRealm();
-      if (projectRealm != null)
+      for (Object buildwrapper : getBuildwrappers(project))
       {
-         final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
          try
          {
-            Thread.currentThread().setContextClassLoader(projectRealm);
+            final Method method = buildwrapper.getClass().getMethod(methodName, BootstrapSession.class,
+               MavenProject.class);
 
-            for (Object buildwrapper : getBuildwrappers(project))
-            {
-               try
-               {
-                  final Method method = buildwrapper.getClass().getMethod(methodName, BootstrapSession.class,
-                     MavenProject.class);
+            logger.info("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
+               + project.getName() + "'");
 
-                  logger.info("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
-                     + project.getName() + "'");
-
-                  method.invoke(buildwrapper, session, project);
-               }
-               catch (InvocationTargetException e)
-               {
-                  throw new MavenExecutionException("Buildwrapping of project '" + project.getName() + "' failed.",
-                     e.getCause());
-               }
-               catch (Exception e)
-               {
-                  logger.warn("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
-                     + project.getName() + "' failed", e);
-               }
-            }
+            method.invoke(buildwrapper, session, project);
          }
-         finally
+         catch (InvocationTargetException e)
          {
-            Thread.currentThread().setContextClassLoader(originalClassLoader);
+            throw new MavenExecutionException("Buildwrapping of project '" + project.getName() + "' failed.",
+               e.getCause());
+         }
+         catch (Exception e)
+         {
+            logger.warn("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
+               + project.getName() + "' failed", e);
          }
       }
    }
 
    private List<Object> getBuildwrappers(MavenProject project)
    {
-      final String fqn = IMavenBootstrapperListener.class.getName();
-
-      @SuppressWarnings("unchecked")
-      List<Object> wrappers = (List<Object>) project.getContextValue(fqn);
-      if (wrappers != null)
-      {
-         return wrappers;
-      }
-
+      final ClassLoader projectRealm = project.getClassRealm();
+      final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
       try
       {
-         wrappers = plexusContainer.lookupList(fqn);
+         Thread.currentThread().setContextClassLoader(projectRealm);
+
+         final String fqn = IMavenBootstrapperListener.class.getName();
+
+         @SuppressWarnings("unchecked")
+         List<Object> wrappers = (List<Object>) project.getContextValue(fqn);
+         if (wrappers != null)
+         {
+            return wrappers;
+         }
+
+         try
+         {
+            wrappers = new ArrayList<Object>(plexusContainer.lookupList(fqn));
+         }
+         catch (ComponentLookupException e)
+         {
+            throw new IllegalStateException(e);
+         }
+
+         project.setContextValue(fqn, wrappers);
+
+         return wrappers;
       }
-      catch (ComponentLookupException e)
+      finally
       {
-         throw new IllegalStateException(e);
+         Thread.currentThread().setContextClassLoader(originalClassLoader);
       }
-
-      if (wrappers == null)
-      {
-         wrappers = new ArrayList<Object>();
-      }
-
-      project.setContextValue(fqn, wrappers);
-
-      return wrappers;
    }
 
    private List<MavenProject> createWrapperProjects(MavenSession session, Collection<File> descriptors,
