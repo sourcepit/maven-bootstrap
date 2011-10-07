@@ -33,7 +33,7 @@
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
-				<groupId>org.sourcepit.beef</groupId>
+				<groupId>org.sourcepit.tool</groupId>
 				<artifactId>maven-wrapper-api</artifactId>
 				<version>${project.version}</version>
 			</dependency>

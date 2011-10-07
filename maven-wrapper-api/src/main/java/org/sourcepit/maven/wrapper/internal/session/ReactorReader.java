@@ -1,5 +1,5 @@
 
-package org.sourcepit.beef.maven.wrapper.internal.session;
+package org.sourcepit.maven.wrapper.internal.session;
 
 
 import java.io.File;

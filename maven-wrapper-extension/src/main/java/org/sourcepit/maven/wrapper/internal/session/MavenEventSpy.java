@@ -6,15 +6,15 @@
  * Contributors: Bernd - initial API and implementation and/or initial documentation
  *******************************************************************************/
 
-package org.sourcepit.beef.maven.wrapper.internal.session;
+package org.sourcepit.maven.wrapper.internal.session;
 
 import org.apache.maven.eventspy.AbstractEventSpy;
 import org.apache.maven.eventspy.EventSpy;
 import org.apache.maven.execution.ExecutionEvent;
-import org.apache.maven.execution.ExecutionEvent.Type;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
+
 
 /**
  * @author Bernd
@@ -31,7 +31,7 @@ public class MavenEventSpy extends AbstractEventSpy
       if (oEvent instanceof ExecutionEvent)
       {
          final ExecutionEvent event = (ExecutionEvent) oEvent;
-         if (Type.SessionEnded == event.getType())
+         if (ExecutionEvent.Type.SessionEnded == event.getType())
          {
             sessionWrapper.sessionEnded();
          }

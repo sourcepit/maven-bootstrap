@@ -15,8 +15,9 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.sourcepit.beef</groupId>
+			<groupId>org.sourcepit.tools</groupId>
 			<artifactId>maven-wrapper-api</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
 

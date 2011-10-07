@@ -6,13 +6,14 @@
  * Contributors: Bernd - initial API and implementation and/or initial documentation
  *******************************************************************************/
 
-package org.sourcepit.beef.maven.wrapper.internal.session;
+package org.sourcepit.maven.wrapper.internal.session;
 
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenSession;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
+
 
 /**
  * @author Bernd

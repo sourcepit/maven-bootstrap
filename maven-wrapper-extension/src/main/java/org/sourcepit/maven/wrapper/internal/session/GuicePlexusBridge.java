@@ -4,7 +4,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  *******************************************************************************/
 
-package org.sourcepit.beef.maven.wrapper.internal.session;
+package org.sourcepit.maven.wrapper.internal.session;
 
 import javax.inject.Inject;
 
@@ -21,6 +21,7 @@ import org.sonatype.inject.BeanScanning;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.util.Providers;
+
 
 /**
  * Example Guice/JSR330 <-> Plexus bridge component.
