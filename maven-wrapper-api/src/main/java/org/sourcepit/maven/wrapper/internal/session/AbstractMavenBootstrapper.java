@@ -17,6 +17,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Inject;
+
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenExecutionRequest;
@@ -48,6 +50,10 @@ import org.sonatype.aether.repository.RemoteRepository;
 import org.sonatype.aether.repository.WorkspaceReader;
 import org.sonatype.aether.util.DefaultRepositorySystemSession;
 import org.sonatype.aether.util.listener.ChainedRepositoryListener;
+import org.sourcepit.guplex.Guplex;
+
+import com.google.inject.Injector;
+import com.google.inject.Module;
 
 public abstract class AbstractMavenBootstrapper implements ISessionListener
 {
@@ -212,7 +218,26 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
          try
          {
-            wrappers = new ArrayList<Object>(plexusContainer.lookupList(fqn));
+            ClassLoader classLoader = null;
+
+            Collection<ClassRealm> realms = project.getClassRealm().getWorld().getRealms();
+            for (ClassRealm classRealm : realms)
+            {
+               if (classRealm.getId().startsWith("extension"))
+               {
+                  classLoader = classRealm;
+                  break;
+               }
+            }
+            
+            // ClassLoader classLoader = plexusContainer.lookupList(fqn).get(0).getClass().getClassLoader();
+
+            Foo foo = new Foo();
+            plexusContainer.lookup(Guplex.class).inject(foo, classLoader);
+
+            wrappers = foo.lookupList(classLoader, fqn);
+
+            // wrappers = new ArrayList<Object>(plexusContainer.lookupList(fqn));
          }
          catch (ComponentLookupException e)
          {
@@ -425,12 +450,20 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
          BootstrapSession.class.getName().lastIndexOf('.'))
          + ".*";
 
+      private final static String PKG_PREFIX_2 = Inject.class.getName().substring(0,
+         Inject.class.getName().lastIndexOf('.'))
+         + ".*";
+
       @Override
       public Class<?> loadClass(String name) throws ClassNotFoundException
       {
          if (BootstrapSession.class.getName().equals(name))
          {
             return BootstrapSession.class;
+         }
+         if (name.startsWith("javax.inject."))
+         {
+            return Inject.class.getClassLoader().loadClass(name);
          }
          return super.loadClass(name);
       }
@@ -444,6 +477,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       public void realmCreated(ClassRealm realm)
       {
          realm.importFrom(this, PKG_PREFIX);
+         realm.importFrom(this, PKG_PREFIX_2);
       }
 
       public void realmDisposed(ClassRealm realm)
