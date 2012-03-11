@@ -5,9 +5,7 @@
 package org.sourcepit.maven.wrapper.internal.session;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URL;
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -16,8 +14,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-
-import javax.inject.Inject;
 
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
@@ -50,10 +46,12 @@ import org.sonatype.aether.repository.RemoteRepository;
 import org.sonatype.aether.repository.WorkspaceReader;
 import org.sonatype.aether.util.DefaultRepositorySystemSession;
 import org.sonatype.aether.util.listener.ChainedRepositoryListener;
+import org.sonatype.guice.bean.locators.BeanLocator;
+import org.sonatype.inject.BeanEntry;
 import org.sourcepit.guplex.Guplex;
 
 import com.google.inject.Injector;
-import com.google.inject.Module;
+import com.google.inject.Key;
 
 public abstract class AbstractMavenBootstrapper implements ISessionListener
 {
@@ -71,7 +69,21 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    @Requirement
    private ProjectRealmCache projectRealmCache;
 
-   private final BootstrapSessionClassLoader bootstrapSessionClassLoader = new BootstrapSessionClassLoader();
+   private final BootstrapSessionClassLoader bootstrapSessionClassLoader;
+
+   public AbstractMavenBootstrapper()
+   {
+      final List<String> imports = new ArrayList<String>();
+      imports.add("javax.inject.*");
+      imports.add("com.google.inject.*");
+      imports.add("com.google.inject.name.*");
+      imports.add("org.sonatype.inject.*");
+
+      imports.add(BootstrapSessionClassLoader.toImportPattern(BootstrapSession.class));
+      imports.add(BootstrapSessionClassLoader.toImportPattern(IMavenBootstrapperListener.class));
+
+      bootstrapSessionClassLoader = new BootstrapSessionClassLoader(getClass().getClassLoader(), imports);
+   }
 
    private BootstrapSession bootstrapSession;
 
@@ -89,7 +101,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       beforeWrapperProjectsInitialized(session, wrapperProjects);
       try
       {
-         invoke("beforeProjectBuild", bootstrapSession, true);
+         fireBeforeProjectBuild(bootstrapSession, true);
       }
       finally
       {
@@ -119,13 +131,9 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
    private void sessionEnded(List<MavenProject> projects)
    {
-      try
+      for (MavenProject project : projects)
       {
-         invoke("afterProjectBuild", bootstrapSession, false);
-      }
-      catch (MavenExecutionException e)
-      {
-         logger.error(e.getLocalizedMessage(), e);
+         fireProjectBuildEvent(ProjectBuildEvent.AFTER, bootstrapSession, project);
       }
    }
 
@@ -149,7 +157,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       projectRealmCache.flush();
    }
 
-   private void invoke(String methodName, BootstrapSession session, boolean resolveDependencies)
+   private void fireBeforeProjectBuild(BootstrapSession session, boolean resolveDependencies)
       throws MavenExecutionException
    {
       WorkspaceReader reactorReader = null;
@@ -167,90 +175,118 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
             resolveDependencies(session, project, reactorReader);
          }
 
-         invoke(methodName, session, project);
+         fireProjectBuildEvent(ProjectBuildEvent.BEFORE, session, project);
       }
    }
 
-   private void invoke(String methodName, final BootstrapSession session, final MavenProject project)
-      throws MavenExecutionException
+   private enum ProjectBuildEvent
    {
-      for (Object buildwrapper : getBuildwrappers(project))
+      BEFORE, AFTER
+   }
+
+   private void fireProjectBuildEvent(ProjectBuildEvent event, final BootstrapSession session,
+      final MavenProject project)
+   {
+      for (IMavenBootstrapperListener buildwrapper : getBuildwrappers(project))
       {
+         logger.info("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
+            + project.getName() + "'");
          try
          {
-            final Method method = buildwrapper.getClass().getMethod(methodName, BootstrapSession.class,
-               MavenProject.class);
-
-            logger.info("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
-               + project.getName() + "'");
-
-            method.invoke(buildwrapper, session, project);
+            switch (event)
+            {
+               case BEFORE :
+                  buildwrapper.beforeProjectBuild(session, project);
+                  break;
+               case AFTER :
+                  buildwrapper.afterProjectBuild(session, project);
+                  break;
+               default :
+                  throw new IllegalStateException();
+            }
          }
-         catch (InvocationTargetException e)
+         catch (RuntimeException e)
          {
-            throw new MavenExecutionException("Buildwrapping of project '" + project.getName() + "' failed.",
-               e.getCause());
+            logger.error("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
+               + project.getName() + "' failed", e);
          }
          catch (Exception e)
          {
-            logger.warn("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
+            logger.error("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
                + project.getName() + "' failed", e);
          }
       }
    }
 
-   private List<Object> getBuildwrappers(MavenProject project)
+   private List<IMavenBootstrapperListener> getBuildwrappers(MavenProject project)
    {
-      final ClassLoader projectRealm = project.getClassRealm();
+      final String fqn = IMavenBootstrapperListener.class.getName();
+
+      @SuppressWarnings("unchecked")
+      List<IMavenBootstrapperListener> wrappers = (List<IMavenBootstrapperListener>) project.getContextValue(fqn);
+      if (wrappers != null)
+      {
+         return wrappers;
+      }
+
+      final ClassRealm projectRealm = project.getClassRealm();
+      if (projectRealm == null) // no extensions for this project
+      {
+         wrappers = new ArrayList<IMavenBootstrapperListener>();
+      }
+      else
+      {
+         wrappers = lookup(projectRealm);
+      }
+
+      project.setContextValue(fqn, wrappers);
+
+      return wrappers;
+   }
+
+   private List<IMavenBootstrapperListener> lookup(final ClassRealm projectRealm)
+   {
       final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+      Thread.currentThread().setContextClassLoader(projectRealm);
       try
       {
-         Thread.currentThread().setContextClassLoader(projectRealm);
+         final List<ClassRealm> realms = new ArrayList<ClassRealm>();
+         collectRealms(realms, projectRealm);
 
-         final String fqn = IMavenBootstrapperListener.class.getName();
+         final Guplex guplex = plexusContainer.lookup(Guplex.class);
+         final Injector injector = guplex.createInjector(realms, null);
+         final BeanLocator locator = injector.getInstance(BeanLocator.class);
 
-         @SuppressWarnings("unchecked")
-         List<Object> wrappers = (List<Object>) project.getContextValue(fqn);
-         if (wrappers != null)
+         final Key<IMavenBootstrapperListener> key = Key.get(IMavenBootstrapperListener.class);
+         final List<IMavenBootstrapperListener> result = new ArrayList<IMavenBootstrapperListener>();
+         for (BeanEntry<Annotation, IMavenBootstrapperListener> beanEntry : locator.locate(key))
          {
-            return wrappers;
+            result.add(beanEntry.getValue());
          }
-
-         try
-         {
-            ClassLoader classLoader = null;
-
-            Collection<ClassRealm> realms = project.getClassRealm().getWorld().getRealms();
-            for (ClassRealm classRealm : realms)
-            {
-               if (classRealm.getId().startsWith("extension"))
-               {
-                  classLoader = classRealm;
-                  break;
-               }
-            }
-            
-            // ClassLoader classLoader = plexusContainer.lookupList(fqn).get(0).getClass().getClassLoader();
-
-            Foo foo = new Foo();
-            plexusContainer.lookup(Guplex.class).inject(foo, classLoader);
-
-            wrappers = foo.lookupList(classLoader, fqn);
-
-            // wrappers = new ArrayList<Object>(plexusContainer.lookupList(fqn));
-         }
-         catch (ComponentLookupException e)
-         {
-            throw new IllegalStateException(e);
-         }
-
-         project.setContextValue(fqn, wrappers);
-
-         return wrappers;
+         return result;
+      }
+      catch (ComponentLookupException e)
+      {
+         throw new IllegalStateException(e);
       }
       finally
       {
          Thread.currentThread().setContextClassLoader(originalClassLoader);
+      }
+   }
+
+   private void collectRealms(List<ClassRealm> realms, ClassRealm classRealm)
+   {
+      if (!realms.contains(classRealm))
+      {
+         realms.add(classRealm);
+
+         @SuppressWarnings("unchecked")
+         Collection<ClassRealm> importRealms = classRealm.getImportRealms();
+         for (ClassRealm importRealm : importRealms)
+         {
+            collectRealms(realms, importRealm);
+         }
       }
    }
 
@@ -444,45 +480,37 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
       }
    }
 
-   private final static class BootstrapSessionClassLoader extends ClassLoader implements ClassWorldListener
+   private final static class BootstrapSessionClassLoader /* extends ClassLoader */implements ClassWorldListener
    {
-      private final static String PKG_PREFIX = BootstrapSession.class.getName().substring(0,
-         BootstrapSession.class.getName().lastIndexOf('.'))
-         + ".*";
+      private final ClassLoader classLoader;
 
-      private final static String PKG_PREFIX_2 = Inject.class.getName().substring(0,
-         Inject.class.getName().lastIndexOf('.'))
-         + ".*";
+      private final List<String> imports = new ArrayList<String>();
 
-      @Override
-      public Class<?> loadClass(String name) throws ClassNotFoundException
+      public BootstrapSessionClassLoader(ClassLoader classLoader, List<String> imports)
       {
-         if (BootstrapSession.class.getName().equals(name))
-         {
-            return BootstrapSession.class;
-         }
-         if (name.startsWith("javax.inject."))
-         {
-            return Inject.class.getClassLoader().loadClass(name);
-         }
-         return super.loadClass(name);
+         this.classLoader = classLoader;
+         this.imports.addAll(imports);
       }
 
-      @Override
-      public URL getResource(String name)
+      private static String toImportPattern(Class<?> clazz)
       {
-         return null;
+         final String name = clazz.getName();
+         final StringBuilder sb = new StringBuilder();
+         sb.append(name.substring(0, name.lastIndexOf('.')));
+         sb.append(".*");
+         return sb.toString();
       }
 
       public void realmCreated(ClassRealm realm)
       {
-         realm.importFrom(this, PKG_PREFIX);
-         realm.importFrom(this, PKG_PREFIX_2);
+         for (String packageImport : imports)
+         {
+            realm.importFrom(classLoader, packageImport);
+         }
       }
 
       public void realmDisposed(ClassRealm realm)
       {
-
       }
    }
 }
