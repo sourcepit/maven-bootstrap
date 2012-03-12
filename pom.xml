@@ -9,17 +9,17 @@
 		<relativePath>../tools-parent</relativePath>
 	</parent>
 
-	<artifactId>maven-wrapper</artifactId>
+	<artifactId>maven-execution-interception</artifactId>
 	<version>0.1.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<scm>
-		<connection>scm:svn:http://svn.sourcepit.org/tools/trunk/maven-wrapper</connection>
+		<connection>scm:git:git@github.com:sourcepit/maven-execution-interception.git</connection>
 	</scm>
 
 	<modules>
-		<module>maven-wrapper-extension</module>
-		<module>maven-wrapper-api</module>
+		<module>maven-execution-interceptor</module>
+		<module>maven-execution-participation</module>
 	</modules>
 
 	<!-- repo to resolve parent pom from -->
@@ -34,12 +34,12 @@
 		<dependencies>
 			<dependency>
 				<groupId>org.sourcepit.tools</groupId>
-				<artifactId>maven-wrapper-api</artifactId>
+				<artifactId>maven-execution-participation</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.tools</groupId>
-				<artifactId>maven-wrapper-extension</artifactId>
+				<artifactId>maven-execution-interceptor</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
@@ -130,7 +130,7 @@
 				<it.repo.url>file://${user.dir}/target/it-repository</it.repo.url>
 			</properties>
 			<modules>
-				<module>maven-wrapper-its</module>
+				<module>maven-execution-interception-its</module>
 			</modules>
 			<build>
 				<plugins>

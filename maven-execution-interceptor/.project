@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>maven-wrapper-extension</name>
+	<name>maven-execution-interceptor</name>
 	<comment></comment>
 	<projects>
 	</projects>

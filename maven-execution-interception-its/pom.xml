@@ -2,12 +2,11 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
-		<artifactId>maven-wrapper</artifactId>
 		<groupId>org.sourcepit.tools</groupId>
+		<artifactId>maven-execution-interception</artifactId>
 		<version>0.1.0-SNAPSHOT</version>
-		<relativePath>..</relativePath>
 	</parent>
-	<artifactId>maven-wrapper-its</artifactId>
+	<artifactId>maven-execution-interception-its</artifactId>
 
 	<packaging>maven-plugin</packaging>
 
@@ -41,11 +40,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.sourcepit.tools</groupId>
-			<artifactId>maven-wrapper-api</artifactId>
+			<artifactId>maven-execution-participation</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.sourcepit.tools</groupId>
-			<artifactId>maven-wrapper-extension</artifactId>
+			<artifactId>maven-execution-interceptor</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.sourcepit.common</groupId>
@@ -123,37 +122,13 @@
 						</goals>
 						<configuration>
 							<outputDirectory>${it.bin.dir}/apache-maven-${it.maven.version}/lib/ext</outputDirectory>
-							<!-- <includeGroupIds>org.sourcepit,org.sourcepit.tools,org.sourcepit.common</includeGroupIds> -->
-							<excludeArtifactIds>maven-wrapper-its</excludeArtifactIds>
+							<excludeArtifactIds>maven-execution-interception-its</excludeArtifactIds>
 							<excludeGroupIds>org.apache.maven</excludeGroupIds>
 							<includeScope>compile</includeScope>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
-			<!-- <plugin> -->
-			<!-- <artifactId>maven-resources-plugin</artifactId> -->
-			<!-- <executions> -->
-			<!-- <execution> -->
-			<!-- <id>copy-resources</id> -->
-			<!-- <phase>pre-integration-test</phase> -->
-			<!-- <goals> -->
-			<!-- <goal>copy-resources</goal> -->
-			<!-- </goals> -->
-			<!-- <configuration> -->
-			<!-- <outputDirectory>${it.bin.dir}/apache-maven-${it.maven.version}/lib/ext</outputDirectory> -->
-			<!-- <resources> -->
-			<!-- <resource> -->
-			<!-- <directory>${project.build.directory}</directory> -->
-			<!-- <includes> -->
-			<!-- <include>${project.build.finalName}*.jar</include> -->
-			<!-- </includes> -->
-			<!-- </resource> -->
-			<!-- </resources> -->
-			<!-- </configuration> -->
-			<!-- </execution> -->
-			<!-- </executions> -->
-			<!-- </plugin> -->
 			<plugin>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<executions>
