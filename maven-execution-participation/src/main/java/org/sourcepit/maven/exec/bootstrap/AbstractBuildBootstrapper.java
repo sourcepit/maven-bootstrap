@@ -55,7 +55,7 @@ import org.sourcepit.maven.exec.participate.MavenExecutionParticipant;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 
-public abstract class AbstractMavenBootstrapper implements MavenExecutionParticipant
+public abstract class AbstractBuildBootstrapper implements MavenExecutionParticipant
 {
    private final Map<Thread, List<MavenProject>> threadToProjects = new LinkedHashMap<Thread, List<MavenProject>>();
 
@@ -71,9 +71,9 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
    @Requirement
    private ProjectRealmCache projectRealmCache;
 
-   private final BootstrapSessionClassLoader bootstrapSessionClassLoader;
+   private final ImportEnforcer importEnforcer;
 
-   public AbstractMavenBootstrapper()
+   public AbstractBuildBootstrapper()
    {
       final List<String> imports = new ArrayList<String>();
       imports.add("javax.inject.*");
@@ -81,38 +81,39 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
       imports.add("com.google.inject.name.*");
       imports.add("org.sonatype.inject.*");
 
-      imports.add(BootstrapSessionClassLoader.toImportPattern(BootstrapSession.class));
-      imports.add(BootstrapSessionClassLoader.toImportPattern(IMavenBootstrapperListener.class));
+      imports.add(ImportEnforcer.toImportPattern(BootstrapSession.class));
+      imports.add(ImportEnforcer.toImportPattern(BuildBootstrapParticipant.class));
 
-      bootstrapSessionClassLoader = new BootstrapSessionClassLoader(getClass().getClassLoader(), imports);
+      importEnforcer = new ImportEnforcer(getClass().getClassLoader(), imports);
    }
 
    private BootstrapSession bootstrapSession;
 
-   public void executionStarted(MavenSession session, MavenExecutionRequest executionRequest) throws MavenExecutionException
+   public void executionStarted(MavenSession session, MavenExecutionRequest executionRequest)
+      throws MavenExecutionException
    {
-      plexusContainer.getContainerRealm().getWorld().addListener(bootstrapSessionClassLoader);
+      plexusContainer.getContainerRealm().getWorld().addListener(importEnforcer);
 
       final Collection<File> descriptors = new LinkedHashSet<File>();
       final Collection<File> skippedDescriptors = new HashSet<File>();
       getModuleDescriptors(session, descriptors, skippedDescriptors);
 
-      final List<MavenProject> wrapperProjects = createWrapperProjects(session, descriptors, skippedDescriptors);
-      bootstrapSession = new BootstrapSession(wrapperProjects, skippedDescriptors);
+      final List<MavenProject> bootstrapProjects = createBootstrapProjects(session, descriptors, skippedDescriptors);
+      bootstrapSession = new BootstrapSession(bootstrapProjects, skippedDescriptors);
 
-      beforeWrapperProjectsInitialized(session, wrapperProjects);
+      beforeBootstrapProjects(session, bootstrapProjects);
       try
       {
-         fireBeforeProjectBuild(bootstrapSession, true);
+         fireBeforeBuild(bootstrapSession, true);
       }
       finally
       {
-         disposeProjectRealms(wrapperProjects);
+         disposeProjectRealms(bootstrapProjects);
       }
-      afterWrapperProjectsInitialized(session, wrapperProjects);
+      afterWrapperProjectsInitialized(session, bootstrapProjects);
    }
 
-   protected abstract void beforeWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
+   protected abstract void beforeBootstrapProjects(MavenSession session, List<MavenProject> projects)
       throws MavenExecutionException;
 
    protected abstract void afterWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
@@ -126,16 +127,16 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
       final List<MavenProject> wrapperProject = threadToProjects.remove(Thread.currentThread());
       if (wrapperProject != null)
       {
-         sessionEnded(wrapperProject);
+         executionEnded(wrapperProject);
       }
-      plexusContainer.getContainerRealm().getWorld().removeListener(bootstrapSessionClassLoader);
+      plexusContainer.getContainerRealm().getWorld().removeListener(importEnforcer);
    }
 
-   private void sessionEnded(List<MavenProject> projects)
+   private void executionEnded(List<MavenProject> projects)
    {
       for (MavenProject project : projects)
       {
-         fireProjectBuildEvent(ProjectBuildEvent.AFTER, bootstrapSession, project);
+         fireBuildEvent(BuildEvent.AFTER, bootstrapSession, project);
       }
    }
 
@@ -159,49 +160,43 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
       projectRealmCache.flush();
    }
 
-   private void fireBeforeProjectBuild(BootstrapSession session, boolean resolveDependencies)
+   private void fireBeforeBuild(BootstrapSession bootstrapSession, boolean resolveDependencies)
       throws MavenExecutionException
    {
       WorkspaceReader reactorReader = null;
 
-      for (MavenProject project : session.getBootstrapProjects())
+      for (MavenProject bootstrapProject : bootstrapSession.getBootstrapProjects())
       {
-         session.setCurrentProject(project);
+         bootstrapSession.setCurrentProject(bootstrapProject);
 
          if (resolveDependencies)
          {
             if (reactorReader == null)
             {
-               reactorReader = new ReactorReader(ReactorReader.getProjectMap(session.getBootstrapProjects()));
+               reactorReader = new ReactorReader(ReactorReader.getProjectMap(bootstrapSession.getBootstrapProjects()));
             }
-            resolveDependencies(session, project, reactorReader);
+            resolveDependencies(bootstrapSession, bootstrapProject, reactorReader);
          }
 
-         fireProjectBuildEvent(ProjectBuildEvent.BEFORE, session, project);
+         fireBuildEvent(BuildEvent.BEFORE, bootstrapSession, bootstrapProject);
       }
    }
 
-   private enum ProjectBuildEvent
+   private void fireBuildEvent(BuildEvent event, final BootstrapSession session, final MavenProject project)
    {
-      BEFORE, AFTER
-   }
-
-   private void fireProjectBuildEvent(ProjectBuildEvent event, final BootstrapSession session,
-      final MavenProject project)
-   {
-      for (IMavenBootstrapperListener buildwrapper : getBuildwrappers(project))
+      for (BuildBootstrapParticipant bootstrapParticipants : getBootstrapParticipants(project))
       {
-         logger.info("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
-            + project.getName() + "'");
+         logger.info("Invoking bootstrap participant '" + bootstrapParticipants.getClass().getSimpleName()
+            + "' on project '" + project.getName() + "'");
          try
          {
             switch (event)
             {
                case BEFORE :
-                  buildwrapper.beforeProjectBuild(session, project);
+                  bootstrapParticipants.beforeBuild(session, project);
                   break;
                case AFTER :
-                  buildwrapper.afterProjectBuild(session, project);
+                  bootstrapParticipants.afterBuild(session, project);
                   break;
                default :
                   throw new IllegalStateException();
@@ -209,44 +204,45 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
          }
          catch (RuntimeException e)
          {
-            logger.error("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
-               + project.getName() + "' failed", e);
+            logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
+               + "' on project '" + project.getName() + "' failed", e);
          }
          catch (Exception e)
          {
-            logger.error("Invoking buildwrapper '" + buildwrapper.getClass().getSimpleName() + "' on project '"
-               + project.getName() + "' failed", e);
+            logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
+               + "' on project '" + project.getName() + "' failed", e);
          }
       }
    }
 
-   private List<IMavenBootstrapperListener> getBuildwrappers(MavenProject project)
+   private List<BuildBootstrapParticipant> getBootstrapParticipants(MavenProject project)
    {
-      final String fqn = IMavenBootstrapperListener.class.getName();
+      final String fqn = BuildBootstrapParticipant.class.getName();
 
       @SuppressWarnings("unchecked")
-      List<IMavenBootstrapperListener> wrappers = (List<IMavenBootstrapperListener>) project.getContextValue(fqn);
-      if (wrappers != null)
+      List<BuildBootstrapParticipant> bootstrapParticipants = (List<BuildBootstrapParticipant>) project
+         .getContextValue(fqn);
+      if (bootstrapParticipants != null)
       {
-         return wrappers;
+         return bootstrapParticipants;
       }
 
       final ClassRealm projectRealm = project.getClassRealm();
       if (projectRealm == null) // no extensions for this project
       {
-         wrappers = new ArrayList<IMavenBootstrapperListener>();
+         bootstrapParticipants = new ArrayList<BuildBootstrapParticipant>();
       }
       else
       {
-         wrappers = lookup(projectRealm);
+         bootstrapParticipants = lookupBootstrapParticipants(projectRealm);
       }
 
-      project.setContextValue(fqn, wrappers);
+      project.setContextValue(fqn, bootstrapParticipants);
 
-      return wrappers;
+      return bootstrapParticipants;
    }
 
-   private List<IMavenBootstrapperListener> lookup(final ClassRealm projectRealm)
+   private List<BuildBootstrapParticipant> lookupBootstrapParticipants(final ClassRealm projectRealm)
    {
       final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
       Thread.currentThread().setContextClassLoader(projectRealm);
@@ -259,9 +255,9 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
          final Injector injector = guplex.createInjector(realms, null);
          final BeanLocator locator = injector.getInstance(BeanLocator.class);
 
-         final Key<IMavenBootstrapperListener> key = Key.get(IMavenBootstrapperListener.class);
-         final List<IMavenBootstrapperListener> result = new ArrayList<IMavenBootstrapperListener>();
-         for (BeanEntry<Annotation, IMavenBootstrapperListener> beanEntry : locator.locate(key))
+         final Key<BuildBootstrapParticipant> key = Key.get(BuildBootstrapParticipant.class);
+         final List<BuildBootstrapParticipant> result = new ArrayList<BuildBootstrapParticipant>();
+         for (BeanEntry<Annotation, BuildBootstrapParticipant> beanEntry : locator.locate(key))
          {
             result.add(beanEntry.getValue());
          }
@@ -292,7 +288,7 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
       }
    }
 
-   private List<MavenProject> createWrapperProjects(MavenSession session, Collection<File> descriptors,
+   private List<MavenProject> createBootstrapProjects(MavenSession session, Collection<File> descriptors,
       Collection<File> skippedDescriptors) throws MavenExecutionException
    {
       final MavenExecutionRequest execRequest = session.getRequest();
@@ -482,13 +478,13 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
       }
    }
 
-   private final static class BootstrapSessionClassLoader /* extends ClassLoader */implements ClassWorldListener
+   private final static class ImportEnforcer implements ClassWorldListener
    {
       private final ClassLoader classLoader;
 
       private final List<String> imports = new ArrayList<String>();
 
-      public BootstrapSessionClassLoader(ClassLoader classLoader, List<String> imports)
+      public ImportEnforcer(ClassLoader classLoader, List<String> imports)
       {
          this.classLoader = classLoader;
          this.imports.addAll(imports);
@@ -514,5 +510,10 @@ public abstract class AbstractMavenBootstrapper implements MavenExecutionPartici
       public void realmDisposed(ClassRealm realm)
       {
       }
+   }
+
+   private enum BuildEvent
+   {
+      BEFORE, AFTER
    }
 }

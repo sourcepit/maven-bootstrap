@@ -57,6 +57,11 @@
 				<artifactId>common-testing</artifactId>
 				<version>0.1.0-SNAPSHOT</version>
 			</dependency>
+			<dependency>
+				<groupId>org.sourcepit.common</groupId>
+				<artifactId>common-utils</artifactId>
+				<version>0.1.0-SNAPSHOT</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -140,7 +145,7 @@
 						<executions>
 							<execution>
 								<id>gather-artifacts</id>
-								<!-- As far we use our own install mojo that assures that each artifact will be deployed with its base version, we 
+								<!-- As far we use our own install mojo that assures that each artifact will be deployed with its base version, we
 									can call the deploy goal before the phase install, otherwise not! -->
 								<phase>pre-integration-test</phase>
 								<goals>

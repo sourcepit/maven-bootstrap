@@ -39,6 +39,10 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.sourcepit.common</groupId>
+			<artifactId>common-utils</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.sourcepit.tools</groupId>
 			<artifactId>maven-execution-participation</artifactId>
 		</dependency>
@@ -125,6 +129,30 @@
 							<excludeArtifactIds>maven-execution-interception-its</excludeArtifactIds>
 							<excludeGroupIds>org.apache.maven</excludeGroupIds>
 							<includeScope>compile</includeScope>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>2.5</version>
+				<executions>
+					<execution>
+						<id>copy-resources</id>
+						<phase>pre-integration-test</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${it.bin.dir}/apache-maven-${it.maven.version}/lib/ext</outputDirectory>
+							<resources>
+								<resource>
+									<directory>${project.build.directory}</directory>
+									<includes>
+										<include>${project.build.finalName}.jar</include>
+									</includes>
+								</resource>
+							</resources>
 						</configuration>
 					</execution>
 				</executions>
