@@ -16,7 +16,6 @@
 		<dependency>
 			<groupId>org.sourcepit.tools</groupId>
 			<artifactId>maven-execution-participation</artifactId>
-			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
 
