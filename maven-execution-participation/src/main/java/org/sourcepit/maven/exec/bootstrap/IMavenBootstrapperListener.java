@@ -2,7 +2,7 @@
  * Copyright (C) 2011 Bosch Software Innovations GmbH. All rights reserved.
  */
 
-package org.sourcepit.maven.wrapper.internal.session;
+package org.sourcepit.maven.exec.bootstrap;
 
 import org.apache.maven.project.MavenProject;
 

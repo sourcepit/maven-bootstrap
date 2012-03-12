@@ -4,17 +4,13 @@
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  */
 
-package org.sourcepit.maven.wrapper.foo;
+package org.sourcepit.maven.exec.interception.it;
 
-import java.util.Map;
-
-import javax.inject.Inject;
 import javax.inject.Named;
 
-import org.apache.maven.plugin.LegacySupport;
 import org.apache.maven.project.MavenProject;
-import org.sourcepit.maven.wrapper.internal.session.BootstrapSession;
-import org.sourcepit.maven.wrapper.internal.session.IMavenBootstrapperListener;
+import org.sourcepit.maven.exec.bootstrap.BootstrapSession;
+import org.sourcepit.maven.exec.bootstrap.IMavenBootstrapperListener;
 
 /**
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>
@@ -22,12 +18,6 @@ import org.sourcepit.maven.wrapper.internal.session.IMavenBootstrapperListener;
 @Named
 public class TestListener implements IMavenBootstrapperListener
 {
-   @Inject
-   LegacySupport legacySupport;
-   
-   @Inject
-   Map<String, Fooooo> fooMap;
-   
    public void beforeProjectBuild(BootstrapSession session, MavenProject wrapperProject)
    {
       System.out.println("beforeProjectBuild");

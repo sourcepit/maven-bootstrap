@@ -4,7 +4,7 @@
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  */
 
-package org.sourcepit.maven.wrapper;
+package org.sourcepit.maven.exec.interception;
 
 import java.io.File;
 import java.util.Collection;
@@ -14,8 +14,8 @@ import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.component.annotations.Component;
-import org.sourcepit.maven.wrapper.internal.session.AbstractMavenBootstrapper;
-import org.sourcepit.maven.wrapper.internal.session.MavenExecutionParticipant;
+import org.sourcepit.maven.exec.bootstrap.AbstractMavenBootstrapper;
+import org.sourcepit.maven.exec.participate.MavenExecutionParticipant;
 
 /**
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>

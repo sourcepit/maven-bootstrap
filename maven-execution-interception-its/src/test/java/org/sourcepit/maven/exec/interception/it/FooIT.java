@@ -4,7 +4,7 @@
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  */
 
-package org.sourcepit.maven.wrapper.it;
+package org.sourcepit.maven.exec.interception.it;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;

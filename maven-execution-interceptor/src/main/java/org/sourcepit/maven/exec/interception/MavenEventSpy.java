@@ -6,7 +6,7 @@
  * Contributors: Bernd - initial API and implementation and/or initial documentation
  *******************************************************************************/
 
-package org.sourcepit.maven.wrapper;
+package org.sourcepit.maven.exec.interception;
 
 import org.apache.maven.eventspy.AbstractEventSpy;
 import org.apache.maven.eventspy.EventSpy;
@@ -23,7 +23,7 @@ import org.codehaus.plexus.component.annotations.Requirement;
 public class MavenEventSpy extends AbstractEventSpy
 {
    @Requirement
-   private MavenExecutionWrapper sessionWrapper;
+   private MavenExecutionInterceptor executionInterceptor;
 
    @Override
    public void onEvent(Object oEvent) throws Exception
@@ -33,12 +33,12 @@ public class MavenEventSpy extends AbstractEventSpy
          final ExecutionEvent event = (ExecutionEvent) oEvent;
          if (ExecutionEvent.Type.SessionEnded == event.getType())
          {
-            sessionWrapper.onSessionEnded(event.getSession());
+            executionInterceptor.onSessionEnded(event.getSession());
          }
       }
       else if (oEvent instanceof MavenExecutionResult)
       {
-         sessionWrapper.onMavenExecutionResult((MavenExecutionResult) oEvent);
+         executionInterceptor.onMavenExecutionResult((MavenExecutionResult) oEvent);
       }
    }
 }

@@ -2,7 +2,7 @@
  * Copyright (C) 2011 Bosch Software Innovations GmbH. All rights reserved.
  */
 
-package org.sourcepit.maven.wrapper;
+package org.sourcepit.maven.exec.interception;
 
 import java.util.List;
 
@@ -12,17 +12,17 @@ import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
-import org.sourcepit.maven.wrapper.internal.session.MavenExecutionParticipant;
+import org.sourcepit.maven.exec.participate.MavenExecutionParticipant;
 
-@Component(role = MavenExecutionWrapper.class)
-public class MavenExecutionWrapper
+@Component(role = MavenExecutionInterceptor.class)
+public class MavenExecutionInterceptor
 {
    private final ThreadLocal<MavenSession> sessionThreadLocal = new ThreadLocal<MavenSession>();
 
    @Requirement
-   private List<MavenExecutionParticipant> sessionListeners;
+   private List<MavenExecutionParticipant> executionParticipants;
 
-   public MavenExecutionWrapper()
+   public MavenExecutionInterceptor()
    {
       super();
    }
@@ -67,7 +67,7 @@ public class MavenExecutionWrapper
    private void fireExecutionStarted(MavenSession session, final MavenExecutionRequest executionRequest)
       throws MavenExecutionException
    {
-      for (MavenExecutionParticipant listener : sessionListeners)
+      for (MavenExecutionParticipant listener : executionParticipants)
       {
          listener.executionStarted(session, executionRequest);
       }
@@ -75,7 +75,7 @@ public class MavenExecutionWrapper
 
    private void fireExecutionEnded(final MavenSession session, MavenExecutionResult executionResult)
    {
-      for (MavenExecutionParticipant listener : sessionListeners)
+      for (MavenExecutionParticipant listener : executionParticipants)
       {
          listener.executionEnded(session, executionResult);
       }

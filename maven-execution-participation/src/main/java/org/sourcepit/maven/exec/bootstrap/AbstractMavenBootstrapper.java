@@ -2,7 +2,7 @@
  * Copyright (C) 2011 Bosch Software Innovations GmbH. All rights reserved.
  */
 
-package org.sourcepit.maven.wrapper.internal.session;
+package org.sourcepit.maven.exec.bootstrap;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
@@ -50,6 +50,7 @@ import org.sonatype.aether.util.listener.ChainedRepositoryListener;
 import org.sonatype.guice.bean.locators.BeanLocator;
 import org.sonatype.inject.BeanEntry;
 import org.sourcepit.guplex.Guplex;
+import org.sourcepit.maven.exec.participate.MavenExecutionParticipant;
 
 import com.google.inject.Injector;
 import com.google.inject.Key;

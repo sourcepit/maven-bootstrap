@@ -1,5 +1,5 @@
 
-package org.sourcepit.maven.wrapper.internal.session;
+package org.sourcepit.maven.exec.bootstrap;
 
 
 import java.io.File;
