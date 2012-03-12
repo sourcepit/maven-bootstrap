@@ -4,7 +4,7 @@
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  */
 
-package org.sourcepit.maven.wrapper.internal.session;
+package org.sourcepit.maven.wrapper;
 
 import java.io.File;
 import java.util.Collection;
@@ -15,12 +15,12 @@ import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.component.annotations.Component;
 import org.sourcepit.maven.wrapper.internal.session.AbstractMavenBootstrapper;
-import org.sourcepit.maven.wrapper.internal.session.ISessionListener;
+import org.sourcepit.maven.wrapper.internal.session.MavenExecutionParticipant;
 
 /**
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>
  */
-@Component(role = ISessionListener.class)
+@Component(role = MavenExecutionParticipant.class, hint = "TestMavenBootstrapper")
 public class TestMavenBootstrapper extends AbstractMavenBootstrapper
 {
    @Override

@@ -6,7 +6,7 @@
  * Contributors: Bernd - initial API and implementation and/or initial documentation
  *******************************************************************************/
 
-package org.sourcepit.maven.wrapper.internal.session;
+package org.sourcepit.maven.wrapper;
 
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.MavenExecutionException;
@@ -22,12 +22,12 @@ import org.codehaus.plexus.component.annotations.Requirement;
 public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 {
    @Requirement
-   private SessionWrapper sessionWrapper;
+   private MavenExecutionWrapper executionWrapper;
 
    @Override
    public void afterSessionStart(MavenSession session) throws MavenExecutionException
    {
       super.afterSessionStart(session);
-      sessionWrapper.sessionAboutToStart(session);
+      executionWrapper.onAfterSessionStart(session);
    }
 }

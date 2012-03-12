@@ -18,6 +18,7 @@ import java.util.Map;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Repository;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
@@ -53,7 +54,7 @@ import org.sourcepit.guplex.Guplex;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 
-public abstract class AbstractMavenBootstrapper implements ISessionListener
+public abstract class AbstractMavenBootstrapper implements MavenExecutionParticipant
 {
    private final Map<Thread, List<MavenProject>> threadToProjects = new LinkedHashMap<Thread, List<MavenProject>>();
 
@@ -87,7 +88,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
 
    private BootstrapSession bootstrapSession;
 
-   public void sessionAboutToStart(MavenSession session) throws MavenExecutionException
+   public void executionStarted(MavenSession session, MavenExecutionRequest executionRequest) throws MavenExecutionException
    {
       plexusContainer.getContainerRealm().getWorld().addListener(bootstrapSessionClassLoader);
 
@@ -119,7 +120,7 @@ public abstract class AbstractMavenBootstrapper implements ISessionListener
    protected abstract void getModuleDescriptors(MavenSession session, Collection<File> descriptors,
       Collection<File> skippedDescritors) throws MavenExecutionException;
 
-   public void sessionEnded()
+   public void executionEnded(MavenSession session, MavenExecutionResult executionResult)
    {
       final List<MavenProject> wrapperProject = threadToProjects.remove(Thread.currentThread());
       if (wrapperProject != null)
