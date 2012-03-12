@@ -41,18 +41,23 @@ public class TestBuildBootstrapper extends AbstractBuildBootstrapper
          public boolean visit(File file)
          {
             final String fileName = file.getName();
-            if (file.isFile() && "pom.xml".equals(fileName))
+            if (file.isDirectory() && !"target".equals(fileName))
             {
-               descriptors.add(file);
+               final File pomFile = new File(file, "pom.xml");
+               if (pomFile.exists())
+               {
+                  descriptors.add(pomFile);
+                  return true;
+               }
             }
-            return file.isDirectory() && !"target".equals(fileName);
+            return false;
          }
       });
 
       final List<String> paths = new ArrayList<String>();
       for (File file : descriptors)
       {
-         paths.add(PathUtils.getRelativePath(file.getAbsoluteFile(), baseDir, File.separator));
+         paths.add(PathUtils.getRelativePath(file.getAbsoluteFile(), baseDir, "/"));
       }
       report.println(paths);
    }

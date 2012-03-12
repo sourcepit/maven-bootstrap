@@ -20,8 +20,6 @@ import org.apache.commons.io.IOUtils;
 
 public class Report
 {
-   private StringBuilder report = new StringBuilder();
-
    private final File file;
 
    public Report(File file)
@@ -76,9 +74,8 @@ public class Report
       final Writer writer = newWriter();
       try
       {
-         report.append(value);
-         report.append("\n");
-         writer.write(report.toString());
+         writer.write(value.toString());
+         writer.write("\n");
       }
       catch (IOException e)
       {
@@ -116,7 +113,7 @@ public class Report
             file.getParentFile().mkdirs();
             file.createNewFile();
          }
-         return new OutputStreamWriter(new BufferedOutputStream(new FileOutputStream(file)), "UTF-8");
+         return new OutputStreamWriter(new BufferedOutputStream(new FileOutputStream(file, true)), "UTF-8");
       }
       catch (IOException e)
       {

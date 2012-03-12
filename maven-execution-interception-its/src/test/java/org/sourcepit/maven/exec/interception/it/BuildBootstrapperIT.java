@@ -26,7 +26,7 @@ public class BuildBootstrapperIT extends ExternalMavenTest
    @Override
    protected boolean isDebug()
    {
-      return false;
+      return true;
    }
 
    @Override
@@ -35,7 +35,7 @@ public class BuildBootstrapperIT extends ExternalMavenTest
       return Environment.get("env-it.properties");
    }
 
-   @Test
+// TODO  @Test
    public void testSimpleProject() throws Exception
    {
       final File projectDir = getResource("simple-project");
@@ -62,5 +62,36 @@ public class BuildBootstrapperIT extends ExternalMavenTest
       it = lines.iterator();
       assertThat(it.next(), equalTo("beforeBuild,org.sourcepit.it,simple-project"));
       assertThat(it.next(), equalTo("afterBuild,org.sourcepit.it,simple-project"));
+   }
+   
+   @Test
+   public void testReactorProject() throws Exception
+   {
+      final File projectDir = getResource("reactor-project");
+
+      final int error = build(projectDir, "-e", "-B", "compile");
+      assertThat(error, is(0));
+
+      Report bootstrapperReport = new Report(new File(projectDir, TestBuildBootstrapper.class.getName() + ".txt"));
+      List<String> lines = bootstrapperReport.readLines();
+      assertThat(lines.size(), is(4));
+      
+      Iterator<String> it = lines.iterator();
+      assertThat(it.next(), equalTo("getModuleDescriptors"));
+      assertThat(it.next(), equalTo("pom.xml,module-project-a/pom.xml,module-project-b/pom.xml"));
+      assertThat(it.next(), equalTo("beforeBootstrapProjects"));
+      assertThat(it.next(), equalTo("afterWrapperProjectsInitialized"));
+
+
+      Report participantReport = new Report(
+         new File(projectDir, TestBuildBootstrapParticipant.class.getName() + ".txt"));
+      lines = participantReport.readLines();
+      assertThat(lines.size(), is(4));
+
+      it = lines.iterator();
+      assertThat(it.next(), equalTo("beforeBuild,org.sourcepit.it,module-project-b"));
+      assertThat(it.next(), equalTo("beforeBuild,org.sourcepit.it,module-project-a"));
+      assertThat(it.next(), equalTo("afterBuild,org.sourcepit.it,module-project-b"));
+      assertThat(it.next(), equalTo("afterBuild,org.sourcepit.it,module-project-a"));
    }
 }
