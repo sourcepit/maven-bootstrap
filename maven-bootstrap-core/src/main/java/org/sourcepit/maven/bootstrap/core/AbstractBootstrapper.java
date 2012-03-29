@@ -50,6 +50,7 @@ import org.sonatype.aether.util.listener.ChainedRepositoryListener;
 import org.sonatype.guice.bean.locators.BeanLocator;
 import org.sonatype.inject.BeanEntry;
 import org.sourcepit.guplex.Guplex;
+import org.sourcepit.guplex.InjectorRequest;
 import org.sourcepit.maven.bootstrap.internal.core.ReactorReader;
 import org.sourcepit.maven.bootstrap.participation.BootstrapSession;
 import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
@@ -223,8 +224,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       final String fqn = BootstrapParticipant.class.getName();
 
       @SuppressWarnings("unchecked")
-      List<BootstrapParticipant> bootstrapParticipants = (List<BootstrapParticipant>) project
-         .getContextValue(fqn);
+      List<BootstrapParticipant> bootstrapParticipants = (List<BootstrapParticipant>) project.getContextValue(fqn);
       if (bootstrapParticipants != null)
       {
          return bootstrapParticipants;
@@ -251,11 +251,14 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       Thread.currentThread().setContextClassLoader(projectRealm);
       try
       {
-         final List<ClassRealm> realms = new ArrayList<ClassRealm>();
-         collectRealms(realms, projectRealm);
+         InjectorRequest request = new InjectorRequest();
+         request.setUseIndex(true);
+
+         collectRealms(request.getClassLoaders(), projectRealm);
 
          final Guplex guplex = plexusContainer.lookup(Guplex.class);
-         final Injector injector = guplex.createInjector(realms, null);
+         
+         final Injector injector = guplex.createInjector(request);
          final BeanLocator locator = injector.getInstance(BeanLocator.class);
 
          final Key<BootstrapParticipant> key = Key.get(BootstrapParticipant.class);
@@ -276,7 +279,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       }
    }
 
-   private void collectRealms(List<ClassRealm> realms, ClassRealm classRealm)
+   private void collectRealms(Collection<ClassLoader> realms, ClassRealm classRealm)
    {
       if (!realms.contains(classRealm))
       {
