@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>org.sourcepit.tools</groupId>
 		<artifactId>tools-parent</artifactId>
-		<version>3-SNAPSHOT</version>
+		<version>3</version>
 		<relativePath>../tools-parent</relativePath>
 	</parent>
 
@@ -44,12 +44,12 @@
 			<dependency>
 				<groupId>org.sourcepit</groupId>
 				<artifactId>guice-plexus-bridge</artifactId>
-				<version>0.1.0-SNAPSHOT</version>
+				<version>0.1.0-alpha-2</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-maven</artifactId>
-				<version>0.1.0-alpha-1</version>
+				<version>0.1.0-alpha-2</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
