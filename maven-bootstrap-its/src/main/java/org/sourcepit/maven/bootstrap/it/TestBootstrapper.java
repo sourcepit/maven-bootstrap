@@ -28,6 +28,11 @@ import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 public class TestBootstrapper extends AbstractBootstrapper
 {
    private Report report = new Report(new File(getClass().getName() + ".txt").getAbsoluteFile());
+   
+   public TestBootstrapper()
+   {
+      super("org.sourcepit.tools", "maven-bootstrap-its");
+   }
 
    @Override
    protected void getModuleDescriptors(MavenSession session, final Collection<File> descriptors,

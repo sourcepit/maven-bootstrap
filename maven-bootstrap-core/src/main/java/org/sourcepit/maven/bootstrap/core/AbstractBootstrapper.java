@@ -77,7 +77,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    private final ImportEnforcer importEnforcer;
 
-   public AbstractBootstrapper()
+   public AbstractBootstrapper(String groupId, String artifactId)
    {
       final List<String> imports = new ArrayList<String>();
       imports.add("javax.inject.*");
@@ -88,7 +88,13 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       imports.add(ImportEnforcer.toImportPattern(BootstrapSession.class));
       imports.add(ImportEnforcer.toImportPattern(BootstrapParticipant.class));
 
-      importEnforcer = new ImportEnforcer(getClass().getClassLoader(), imports);
+      final StringBuilder realmPrefix = new StringBuilder();
+      realmPrefix.append("extension>");
+      realmPrefix.append(groupId);
+      realmPrefix.append(":");
+      realmPrefix.append(artifactId);
+
+      importEnforcer = new ImportEnforcer(getClass().getClassLoader(), realmPrefix.toString(), imports);
    }
 
    private BootstrapSession bootstrapSession;
@@ -257,7 +263,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          collectRealms(request.getClassLoaders(), projectRealm);
 
          final Guplex guplex = plexusContainer.lookup(Guplex.class);
-         
+
          final Injector injector = guplex.createInjector(request);
          final BeanLocator locator = injector.getInstance(BeanLocator.class);
 
@@ -488,11 +494,14 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    {
       private final ClassLoader classLoader;
 
+      private final String realmPrefix;
+
       private final List<String> imports = new ArrayList<String>();
 
-      public ImportEnforcer(ClassLoader classLoader, List<String> imports)
+      public ImportEnforcer(ClassLoader classLoader, String realmPrefix, List<String> imports)
       {
          this.classLoader = classLoader;
+         this.realmPrefix = realmPrefix;
          this.imports.addAll(imports);
       }
 
@@ -507,9 +516,12 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
       public void realmCreated(ClassRealm realm)
       {
-         for (String packageImport : imports)
+         if (realm.getId().startsWith(realmPrefix))
          {
-            realm.importFrom(classLoader, packageImport);
+            for (String packageImport : imports)
+            {
+               realm.importFrom(classLoader, packageImport);
+            }
          }
       }
 
