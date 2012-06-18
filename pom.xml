@@ -54,7 +54,7 @@
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-testing</artifactId>
-				<version>0.1.0-alpha-3</version>
+				<version>0.1.0-alpha-5</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
