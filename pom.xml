@@ -59,7 +59,7 @@
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-utils</artifactId>
-				<version>0.1.0-alpha-1</version>
+				<version>0.1.0-alpha-3</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
