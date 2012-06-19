@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.artifact.repository.ArtifactRepository;
@@ -77,6 +78,8 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    private final ImportEnforcer importEnforcer;
 
+   private final Set<String> extensionRealmPrefixes = new HashSet<String>();
+
    public AbstractBootstrapper(String groupId, String artifactId)
    {
       final List<String> imports = new ArrayList<String>();
@@ -94,7 +97,9 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       realmPrefix.append(":");
       realmPrefix.append(artifactId);
 
-      importEnforcer = new ImportEnforcer(getClass().getClassLoader(), realmPrefix.toString(), imports);
+      extensionRealmPrefixes.add(realmPrefix.toString());
+
+      importEnforcer = new ImportEnforcer(getClass().getClassLoader(), extensionRealmPrefixes, imports);
    }
 
    private BootstrapSession bootstrapSession;
@@ -289,7 +294,10 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    {
       if (!realms.contains(classRealm))
       {
-         realms.add(classRealm);
+         if (isExtensionRealm(extensionRealmPrefixes, classRealm))
+         {
+            realms.add(classRealm);
+         }
 
          @SuppressWarnings("unchecked")
          Collection<ClassRealm> importRealms = classRealm.getImportRealms();
@@ -298,6 +306,18 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
             collectRealms(realms, importRealm);
          }
       }
+   }
+
+   private static boolean isExtensionRealm(Collection<String> extensionRealmPrefixes, ClassRealm realm)
+   {
+      for (String realmPrefix : extensionRealmPrefixes)
+      {
+         if (realm.getId().startsWith(realmPrefix))
+         {
+            return true;
+         }
+      }
+      return false;
    }
 
    private List<MavenProject> createBootstrapProjects(MavenSession session, Collection<File> descriptors,
@@ -494,14 +514,14 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    {
       private final ClassLoader classLoader;
 
-      private final String realmPrefix;
+      private final Set<String> extensionRealmPrefixes;
 
       private final List<String> imports = new ArrayList<String>();
 
-      public ImportEnforcer(ClassLoader classLoader, String realmPrefix, List<String> imports)
+      public ImportEnforcer(ClassLoader classLoader, Set<String> extensionRealmPrefixes, List<String> imports)
       {
          this.classLoader = classLoader;
-         this.realmPrefix = realmPrefix;
+         this.extensionRealmPrefixes = extensionRealmPrefixes;
          this.imports.addAll(imports);
       }
 
@@ -516,7 +536,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
       public void realmCreated(ClassRealm realm)
       {
-         if (realm.getId().startsWith(realmPrefix))
+         if (isExtensionRealm(extensionRealmPrefixes, realm))
          {
             for (String packageImport : imports)
             {
