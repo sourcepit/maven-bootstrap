@@ -19,6 +19,7 @@ import org.sourcepit.common.utils.file.FileUtils;
 import org.sourcepit.common.utils.file.FileVisitor;
 import org.sourcepit.common.utils.path.PathUtils;
 import org.sourcepit.maven.bootstrap.core.AbstractBootstrapper;
+import org.sourcepit.maven.bootstrap.participation.BootstrapSession;
 import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
 /**
@@ -28,7 +29,7 @@ import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 public class TestBootstrapper extends AbstractBootstrapper
 {
    private Report report = new Report(new File(getClass().getName() + ".txt").getAbsoluteFile());
-   
+
    public TestBootstrapper()
    {
       super("org.sourcepit.tools", "maven-bootstrap-its");
@@ -68,15 +69,13 @@ public class TestBootstrapper extends AbstractBootstrapper
    }
 
    @Override
-   protected void beforeBootstrapProjects(MavenSession session, List<MavenProject> projects)
-      throws MavenExecutionException
+   protected void beforeBootstrapProjects(BootstrapSession bootstrapSession) throws MavenExecutionException
    {
       report.println("beforeBootstrapProjects");
    }
 
    @Override
-   protected void afterWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
-      throws MavenExecutionException
+   protected void afterWrapperProjectsInitialized(BootstrapSession bootstrapSession) throws MavenExecutionException
    {
       report.println("afterWrapperProjectsInitialized");
    }

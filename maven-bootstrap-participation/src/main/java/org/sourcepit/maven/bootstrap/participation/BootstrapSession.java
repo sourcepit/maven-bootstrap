@@ -11,30 +11,40 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
 
 public class BootstrapSession
 {
+   private final MavenSession mavenSession;
+   
    private final List<MavenProject> wrapperProjects;
 
    private final Collection<File> skippedDescriptors;
 
    private MavenProject currentProject;
 
-   private final Map<String, Object> keyToDataMap = new HashMap<String, Object>();
+   private final Map<Object, Object> keyToDataMap = new HashMap<Object, Object>();
 
-   public BootstrapSession(List<MavenProject> wrapperProjects, Collection<File> skippedDescriptors)
+   public BootstrapSession(MavenSession mavenSession, List<MavenProject> wrapperProjects,
+      Collection<File> skippedDescriptors)
    {
+      this.mavenSession = mavenSession;
       this.wrapperProjects = wrapperProjects;
       this.skippedDescriptors = skippedDescriptors;
    }
+   
+   public MavenSession getMavenSession()
+   {
+      return mavenSession;
+   }
 
-   public void setCurrentProject(MavenProject currentProject)
+   public void setCurrentBootstrapProject(MavenProject currentProject)
    {
       this.currentProject = currentProject;
    }
 
-   public MavenProject getCurrentProject()
+   public MavenProject getCurrentBootstrapProject()
    {
       return currentProject;
    }
@@ -49,12 +59,12 @@ public class BootstrapSession
       return Collections.unmodifiableCollection(skippedDescriptors);
    }
 
-   public Object getData(String key)
+   public Object getData(Object key)
    {
       return keyToDataMap.get(key);
    }
 
-   public void setData(String key, Object data)
+   public void setData(Object key, Object data)
    {
       if (data == null)
       {

@@ -114,9 +114,9 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       getModuleDescriptors(session, descriptors, skippedDescriptors);
 
       final List<MavenProject> bootstrapProjects = createBootstrapProjects(session, descriptors, skippedDescriptors);
-      bootstrapSession = new BootstrapSession(bootstrapProjects, skippedDescriptors);
+      bootstrapSession = new BootstrapSession(session, bootstrapProjects, skippedDescriptors);
 
-      beforeBootstrapProjects(session, bootstrapProjects);
+      beforeBootstrapProjects(bootstrapSession);
       try
       {
          fireBeforeBuild(bootstrapSession, true);
@@ -125,13 +125,13 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       {
          disposeProjectRealms(bootstrapProjects);
       }
-      afterWrapperProjectsInitialized(session, bootstrapProjects);
+      afterWrapperProjectsInitialized(bootstrapSession);
    }
 
-   protected abstract void beforeBootstrapProjects(MavenSession session, List<MavenProject> projects)
+   protected abstract void beforeBootstrapProjects(BootstrapSession bootstrapSession)
       throws MavenExecutionException;
 
-   protected abstract void afterWrapperProjectsInitialized(MavenSession session, List<MavenProject> projects)
+   protected abstract void afterWrapperProjectsInitialized(BootstrapSession bootstrapSession)
       throws MavenExecutionException;
 
    protected abstract void getModuleDescriptors(MavenSession session, Collection<File> descriptors,
@@ -182,7 +182,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
       for (MavenProject bootstrapProject : bootstrapSession.getBootstrapProjects())
       {
-         bootstrapSession.setCurrentProject(bootstrapProject);
+         bootstrapSession.setCurrentBootstrapProject(bootstrapProject);
 
          if (resolveDependencies)
          {
