@@ -11,15 +11,13 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
 import org.junit.Test;
 import org.sourcepit.common.maven.testing.ExternalMavenTest;
 import org.sourcepit.common.testing.Environment;
-import org.sourcepit.maven.bootstrap.it.Report;
-import org.sourcepit.maven.bootstrap.it.TestBootstrapParticipant;
-import org.sourcepit.maven.bootstrap.it.TestBootstrapper;
 
 /**
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>
@@ -56,7 +54,6 @@ public class BuildBootstrapperIT extends ExternalMavenTest
       assertThat(it.next(), equalTo("beforeBootstrapProjects"));
       assertThat(it.next(), equalTo("afterWrapperProjectsInitialized"));
 
-
       Report participantReport = new Report(new File(projectDir, TestBootstrapParticipant.class.getName() + ".txt"));
       lines = participantReport.readLines();
       assertThat(lines.size(), is(2));
@@ -80,7 +77,14 @@ public class BuildBootstrapperIT extends ExternalMavenTest
 
       Iterator<String> it = lines.iterator();
       assertThat(it.next(), equalTo("getModuleDescriptors"));
-      assertThat(it.next(), equalTo("pom.xml,module-project-a/pom.xml,module-project-b/pom.xml"));
+
+      // we musn't rely on module build ordering, it differs from system to system
+      final List<String> poms = Arrays.asList(it.next().split(","));
+      assertThat(poms.size(), is(3));
+      assertThat(poms.contains("pom.xml"), is(true));
+      assertThat(poms.contains("module-project-b/pom.xml"), is(true));
+      assertThat(poms.contains("module-project-a/pom.xml"), is(true));
+
       assertThat(it.next(), equalTo("beforeBootstrapProjects"));
       assertThat(it.next(), equalTo("afterWrapperProjectsInitialized"));
 
