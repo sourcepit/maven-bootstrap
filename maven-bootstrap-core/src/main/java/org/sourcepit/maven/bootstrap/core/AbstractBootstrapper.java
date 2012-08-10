@@ -128,8 +128,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       afterWrapperProjectsInitialized(bootstrapSession);
    }
 
-   protected abstract void beforeBootstrapProjects(BootstrapSession bootstrapSession)
-      throws MavenExecutionException;
+   protected abstract void beforeBootstrapProjects(BootstrapSession bootstrapSession) throws MavenExecutionException;
 
    protected abstract void afterWrapperProjectsInitialized(BootstrapSession bootstrapSession)
       throws MavenExecutionException;
@@ -199,34 +198,55 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    private void fireBuildEvent(BuildEvent event, final BootstrapSession session, final MavenProject project)
    {
-      for (BootstrapParticipant bootstrapParticipants : getBootstrapParticipants(project))
+      if (project.getClassRealm() == null)
       {
-         logger.info("Invoking bootstrap participant '" + bootstrapParticipants.getClass().getSimpleName()
-            + "' on project '" + project.getName() + "'");
-         try
+         return; // no extension registered on this project
+      }
+      final ClassRealm extensionRealm = getExtensionClassRealm(project.getClassRealm());
+      if (extensionRealm == null)
+      {
+         return;
+      }
+
+      final Thread fred = Thread.currentThread();
+      final ClassLoader contextClassLoader = fred.getContextClassLoader();
+      try
+      {
+         fred.setContextClassLoader(extensionRealm);
+
+         for (BootstrapParticipant bootstrapParticipants : getBootstrapParticipants(project))
          {
-            switch (event)
+            logger.info("Invoking bootstrap participant '" + bootstrapParticipants.getClass().getSimpleName()
+               + "' on project '" + project.getName() + "'");
+            try
             {
-               case BEFORE :
-                  bootstrapParticipants.beforeBuild(session, project);
-                  break;
-               case AFTER :
-                  bootstrapParticipants.afterBuild(session, project);
-                  break;
-               default :
-                  throw new IllegalStateException();
+               switch (event)
+               {
+                  case BEFORE :
+                     bootstrapParticipants.beforeBuild(session, project);
+                     break;
+                  case AFTER :
+                     bootstrapParticipants.afterBuild(session, project);
+                     break;
+                  default :
+                     throw new IllegalStateException();
+               }
+            }
+            catch (RuntimeException e)
+            {
+               logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
+                  + "' on project '" + project.getName() + "' failed", e);
+            }
+            catch (Exception e)
+            {
+               logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
+                  + "' on project '" + project.getName() + "' failed", e);
             }
          }
-         catch (RuntimeException e)
-         {
-            logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
-               + "' on project '" + project.getName() + "' failed", e);
-         }
-         catch (Exception e)
-         {
-            logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
-               + "' on project '" + project.getName() + "' failed", e);
-         }
+      }
+      finally
+      {
+         fred.setContextClassLoader(contextClassLoader);
       }
    }
 
@@ -258,14 +278,19 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    private List<BootstrapParticipant> lookupBootstrapParticipants(final ClassRealm projectRealm)
    {
+      final ClassRealm extensionRealm = getExtensionClassRealm(projectRealm);
+      if (extensionRealm == null)
+      {
+         return new ArrayList<BootstrapParticipant>();
+      }
+
       final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-      Thread.currentThread().setContextClassLoader(projectRealm);
+      Thread.currentThread().setContextClassLoader(extensionRealm);
       try
       {
          InjectorRequest request = new InjectorRequest();
          request.setUseIndex(true);
-
-         collectRealms(request.getClassLoaders(), projectRealm);
+         request.getClassLoaders().add(extensionRealm);
 
          final Guplex guplex = plexusContainer.lookup(Guplex.class);
 
@@ -290,7 +315,14 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       }
    }
 
-   private void collectRealms(Collection<ClassLoader> realms, ClassRealm classRealm)
+   private ClassRealm getExtensionClassRealm(ClassRealm projectRealm)
+   {
+      List<ClassRealm> relams = new ArrayList<ClassRealm>();
+      collectRealms(relams, projectRealm);
+      return relams.isEmpty() ? null : relams.get(0);
+   }
+
+   private void collectRealms(Collection<? super ClassRealm> realms, ClassRealm classRealm)
    {
       if (!realms.contains(classRealm))
       {
