@@ -46,13 +46,12 @@ public class BuildBootstrapperIT extends ExternalMavenTest
 
       Report bootstrapperReport = new Report(new File(projectDir, TestBootstrapper.class.getName() + ".txt"));
       List<String> lines = bootstrapperReport.readLines();
-      assertThat(lines.size(), is(4));
+      assertThat(lines.size(), is(3));
 
       Iterator<String> it = lines.iterator();
-      assertThat(it.next(), equalTo("getModuleDescriptors"));
+      assertThat(it.next(), equalTo("discoverProjectDescriptors"));
       assertThat(it.next(), equalTo("pom.xml"));
-      assertThat(it.next(), equalTo("beforeBootstrapProjects"));
-      assertThat(it.next(), equalTo("afterWrapperProjectsInitialized"));
+      assertThat(it.next(), equalTo("adjustActualSession"));
 
       Report participantReport = new Report(new File(projectDir, TestBootstrapParticipant.class.getName() + ".txt"));
       lines = participantReport.readLines();
@@ -73,10 +72,10 @@ public class BuildBootstrapperIT extends ExternalMavenTest
 
       Report bootstrapperReport = new Report(new File(projectDir, TestBootstrapper.class.getName() + ".txt"));
       List<String> lines = bootstrapperReport.readLines();
-      assertThat(lines.size(), is(4));
+      assertThat(lines.size(), is(3));
 
       Iterator<String> it = lines.iterator();
-      assertThat(it.next(), equalTo("getModuleDescriptors"));
+      assertThat(it.next(), equalTo("discoverProjectDescriptors"));
 
       // we musn't rely on module build ordering, it differs from system to system
       final List<String> poms = Arrays.asList(it.next().split(","));
@@ -85,8 +84,7 @@ public class BuildBootstrapperIT extends ExternalMavenTest
       assertThat(poms.contains("module-project-b/pom.xml"), is(true));
       assertThat(poms.contains("module-project-a/pom.xml"), is(true));
 
-      assertThat(it.next(), equalTo("beforeBootstrapProjects"));
-      assertThat(it.next(), equalTo("afterWrapperProjectsInitialized"));
+      assertThat(it.next(), equalTo("adjustActualSession"));
 
 
       Report participantReport = new Report(new File(projectDir, TestBootstrapParticipant.class.getName() + ".txt"));

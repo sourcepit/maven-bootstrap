@@ -12,8 +12,8 @@ import java.util.List;
 
 import javax.inject.Named;
 
+import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
-import org.sourcepit.maven.bootstrap.participation.BootstrapSession;
 import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
 
 /**
@@ -24,21 +24,21 @@ public class TestBootstrapParticipant implements BootstrapParticipant
 {
    private Report report = new Report(new File(getClass().getName() + ".txt").getAbsoluteFile());
 
-   public void beforeBuild(BootstrapSession bootSession, MavenProject bootProject)
+   public void beforeBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession)
    {
       final List<String> values = new ArrayList<String>();
       values.add("beforeBuild");
       values.add(bootProject.getGroupId());
       values.add(bootProject.getArtifactId());
-      report.println(values);
+      report.println(values);      
    }
 
-   public void afterBuild(BootstrapSession bootSession, MavenProject bootProject)
+   public void afterBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession)
    {
       final List<String> values = new ArrayList<String>();
       values.add("afterBuild");
       values.add(bootProject.getGroupId());
       values.add(bootProject.getArtifactId());
-      report.println(values);
+      report.println(values);      
    }
 }

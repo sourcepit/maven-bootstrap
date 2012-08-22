@@ -11,15 +11,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.maven.MavenExecutionException;
+import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.component.annotations.Component;
 import org.sourcepit.common.utils.file.FileUtils;
 import org.sourcepit.common.utils.file.FileVisitor;
 import org.sourcepit.common.utils.path.PathUtils;
 import org.sourcepit.maven.bootstrap.core.AbstractBootstrapper;
-import org.sourcepit.maven.bootstrap.participation.BootstrapSession;
 import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
 /**
@@ -36,10 +34,28 @@ public class TestBootstrapper extends AbstractBootstrapper
    }
 
    @Override
-   protected void getModuleDescriptors(MavenSession session, final Collection<File> descriptors,
-      Collection<File> skippedDescritors) throws MavenExecutionException
+   protected String getDependencyResolutionRequired()
    {
-      report.println("getModuleDescriptors");
+      return null;
+   }
+
+   @Override
+   protected void adjustActualSession(MavenSession bootSession, MavenSession actualSession)
+   {
+      report.println("adjustActualSession");
+   }
+
+   @Override
+   protected List<ArtifactRepository> filterArtifactRepositories(List<ArtifactRepository> remoteRepositories)
+   {
+      return null;
+   }
+
+   @Override
+   protected void discoverProjectDescriptors(MavenSession session, final Collection<File> descriptors,
+      Collection<File> skippedDescriptors)
+   {
+      report.println("discoverProjectDescriptors");
 
       final File baseDir = new File(session.getRequest().getBaseDirectory());
       FileUtils.accept(baseDir, new FileVisitor()
@@ -66,18 +82,6 @@ public class TestBootstrapper extends AbstractBootstrapper
          paths.add(PathUtils.getRelativePath(file.getAbsoluteFile(), baseDir, "/"));
       }
       report.println(paths);
-   }
-
-   @Override
-   protected void beforeBootstrapProjects(BootstrapSession bootstrapSession) throws MavenExecutionException
-   {
-      report.println("beforeBootstrapProjects");
-   }
-
-   @Override
-   protected void afterWrapperProjectsInitialized(BootstrapSession bootstrapSession) throws MavenExecutionException
-   {
-      report.println("afterWrapperProjectsInitialized");
    }
 
 }

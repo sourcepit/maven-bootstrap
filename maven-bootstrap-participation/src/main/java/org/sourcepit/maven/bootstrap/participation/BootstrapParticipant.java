@@ -4,11 +4,12 @@
 
 package org.sourcepit.maven.bootstrap.participation;
 
+import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
 
 public interface BootstrapParticipant
 {
-   void beforeBuild(BootstrapSession bootSession, MavenProject bootProject);
+   void beforeBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession);
 
-   void afterBuild(BootstrapSession bootSession, MavenProject bootProject);
+   void afterBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession);
 }

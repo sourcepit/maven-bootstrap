@@ -6,14 +6,12 @@ package org.sourcepit.maven.bootstrap.core;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,18 +19,19 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.maven.MavenExecutionException;
+import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.artifact.resolver.ArtifactResolutionException;
-import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
-import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
-import org.apache.maven.artifact.resolver.ResolutionErrorHandler;
-import org.apache.maven.artifact.resolver.filter.CumulativeScopeArtifactFilter;
-import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
+import org.apache.maven.execution.DefaultMavenExecutionRequest;
+import org.apache.maven.execution.DefaultMavenExecutionResult;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
-import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Repository;
+import org.apache.maven.lifecycle.LifecycleExecutionException;
+import org.apache.maven.lifecycle.internal.DependencyContext;
+import org.apache.maven.lifecycle.internal.MojoExecutor;
+import org.apache.maven.plugin.LegacySupport;
+import org.apache.maven.plugin.MojoExecution;
+import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
 import org.apache.maven.project.DuplicateProjectException;
 import org.apache.maven.project.MavenProject;
@@ -40,32 +39,19 @@ import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingException;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.project.ProjectBuildingResult;
-import org.apache.maven.project.ProjectRealmCache;
 import org.apache.maven.project.ProjectSorter;
-import org.apache.maven.repository.RepositorySystem;
 import org.codehaus.plexus.PlexusContainer;
-import org.codehaus.plexus.classworlds.ClassWorld;
 import org.codehaus.plexus.classworlds.ClassWorldListener;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
-import org.codehaus.plexus.classworlds.realm.NoSuchRealmException;
 import org.codehaus.plexus.component.annotations.Requirement;
-import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.dag.CycleDetectedException;
-import org.sonatype.aether.AbstractRepositoryListener;
-import org.sonatype.aether.RepositoryEvent;
-import org.sonatype.aether.RepositoryListener;
-import org.sonatype.aether.artifact.Artifact;
-import org.sonatype.aether.repository.RemoteRepository;
-import org.sonatype.aether.repository.WorkspaceReader;
 import org.sonatype.aether.util.DefaultRepositorySystemSession;
-import org.sonatype.aether.util.listener.ChainedRepositoryListener;
+import org.sonatype.aether.util.repository.ChainedWorkspaceReader;
 import org.sonatype.guice.bean.locators.BeanLocator;
 import org.sonatype.inject.BeanEntry;
 import org.sourcepit.guplex.Guplex;
 import org.sourcepit.guplex.InjectorRequest;
-import org.sourcepit.maven.bootstrap.internal.core.ReactorReader;
-import org.sourcepit.maven.bootstrap.participation.BootstrapSession;
 import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
 import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
@@ -74,8 +60,6 @@ import com.google.inject.Key;
 
 public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 {
-   private final Map<Thread, List<MavenProject>> threadToProjects = new LinkedHashMap<Thread, List<MavenProject>>();
-
    @Requirement
    private Logger logger;
 
@@ -83,17 +67,23 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    private PlexusContainer plexusContainer;
 
    @Requirement
-   private ProjectBuilder projectBuilder;
+   private Guplex guplex;
 
    @Requirement
-   private ProjectRealmCache projectRealmCache;
+   private LegacySupport legacySupport;
+
+   @Requirement
+   private ProjectBuilder projectBuilder;
 
    private final ImportEnforcer importEnforcer;
 
    private final Set<String> extensionRealmPrefixes = new HashSet<String>();
 
+   private final Map<MavenSession, MavenSession> actualToBootSession = new HashMap<MavenSession, MavenSession>();
+   private final Map<MavenSession, MavenSession> bootToActualSession = new HashMap<MavenSession, MavenSession>();
+
    @Requirement
-   private RepositorySystem repositorySystem;
+   private MojoExecutor mojoExecutor;
 
    public AbstractBootstrapper(String groupId, String artifactId)
    {
@@ -103,7 +93,6 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       imports.add("com.google.inject.name.*");
       imports.add("org.sonatype.inject.*");
 
-      imports.add(ImportEnforcer.toImportPattern(BootstrapSession.class));
       imports.add(ImportEnforcer.toImportPattern(BootstrapParticipant.class));
 
       final StringBuilder realmPrefix = new StringBuilder();
@@ -117,204 +106,253 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       importEnforcer = new ImportEnforcer(getClass().getClassLoader(), extensionRealmPrefixes, imports);
    }
 
-   private BootstrapSession bootstrapSession;
-
-   public void executionStarted(MavenSession session, MavenExecutionRequest executionRequest)
+   public void executionStarted(MavenSession actualSession, MavenExecutionRequest executionRequest)
       throws MavenExecutionException
    {
       plexusContainer.getContainerRealm().getWorld().addListener(importEnforcer);
 
-      final Collection<File> descriptors = new LinkedHashSet<File>();
-      final Collection<File> skippedDescriptors = new HashSet<File>();
-      getModuleDescriptors(session, descriptors, skippedDescriptors);
+      final MavenSession bootSession = createBootSession(actualSession);
+      mapSessions(actualSession, bootSession);
 
-      final List<MavenProject> bootstrapProjects = createBootstrapProjects(session, descriptors, skippedDescriptors);
-      bootstrapSession = new BootstrapSession(session, bootstrapProjects, skippedDescriptors);
-
-      beforeBootstrapProjects(bootstrapSession);
+      final MavenSession oldSession = legacySupport.getSession();
       try
       {
-         fireBeforeBuild(bootstrapSession, true);
+         legacySupport.setSession(bootSession);
+
+         setupBootSession(bootSession);
+         performBootSession(bootSession);
+         adjustActualSession(bootSession, actualSession);
       }
       finally
       {
-         disposeProjectRealms(bootstrapProjects);
+         legacySupport.setSession(oldSession);
       }
-      afterWrapperProjectsInitialized(bootstrapSession);
    }
 
-   protected abstract void beforeBootstrapProjects(BootstrapSession bootstrapSession) throws MavenExecutionException;
-
-   protected abstract void afterWrapperProjectsInitialized(BootstrapSession bootstrapSession)
-      throws MavenExecutionException;
-
-   protected abstract void getModuleDescriptors(MavenSession session, Collection<File> descriptors,
-      Collection<File> skippedDescritors) throws MavenExecutionException;
-
-   public void executionEnded(MavenSession session, MavenExecutionResult executionResult)
+   private MavenSession createBootSession(MavenSession actualSession)
    {
-      final List<MavenProject> wrapperProject = threadToProjects.remove(Thread.currentThread());
-      if (wrapperProject != null)
+      final DefaultRepositorySystemSession repositorySession = new DefaultRepositorySystemSession(
+         actualSession.getRepositorySession());
+      final MavenExecutionRequest executionRequest = DefaultMavenExecutionRequest.copy(actualSession.getRequest());
+      final DefaultMavenExecutionResult executionResult = new DefaultMavenExecutionResult();
+      return new MavenSession(plexusContainer, repositorySession, executionRequest, executionResult);
+   }
+
+   private void mapSessions(MavenSession actualSession, final MavenSession bootSession)
+   {
+      actualToBootSession.put(actualSession, bootSession);
+      bootToActualSession.put(bootSession, actualSession);
+   }
+
+   private void setupBootSession(MavenSession bootSession)
+   {
+      final Collection<File> descriptors = new LinkedHashSet<File>();
+      final Collection<File> skippedDescriptors = new HashSet<File>();
+      discoverProjectDescriptors(bootSession, descriptors, skippedDescriptors);
+
+      bootSession.setProjects(buildBootstrapProjects(bootSession, descriptors, skippedDescriptors));
+
+      try
       {
-         executionEnded(wrapperProject);
+         Map<String, MavenProject> projectMap = getProjectMap(bootSession.getProjects());
+         DefaultRepositorySystemSession repoSession = (DefaultRepositorySystemSession) bootSession
+            .getRepositorySession();
+         repoSession.setWorkspaceReader(ChainedWorkspaceReader.newInstance(new ReactorReader(projectMap),
+            repoSession.getWorkspaceReader()));
       }
+      catch (org.apache.maven.DuplicateProjectException e)
+      {
+         throw new IllegalStateException(e);
+      }
+   }
+
+   private void performBootSession(final MavenSession bootSession)
+   {
+      for (MavenProject bootProject : bootSession.getProjects())
+      {
+         bootSession.setCurrentProject(bootProject);
+
+         final List<ClassRealm> bootExtensionClassRealms = discoverBootExtensionClassRealms(bootProject);
+         for (ClassRealm bootExtensionClassRealm : bootExtensionClassRealms)
+         {
+            performBootProject(bootSession, bootProject, bootExtensionClassRealm);
+         }
+      }
+   }
+
+   private void performBootProject(MavenSession bootSession, MavenProject bootProject,
+      ClassRealm bootExtensionClassRealm)
+   {
+      ensureDependenciesAreResolved(bootSession);
+
+      final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+      Thread.currentThread().setContextClassLoader(bootExtensionClassRealm);
+      try
+      {
+         final List<BootstrapParticipant> bootParticipants = discoverBootstrapParticipants(bootSession, bootProject,
+            bootExtensionClassRealm);
+         for (BootstrapParticipant bootParticipant : bootParticipants)
+         {
+            bootParticipant.beforeBuild(bootSession, bootProject, bootToActualSession.get(bootSession));
+         }
+      }
+      finally
+      {
+         Thread.currentThread().setContextClassLoader(originalClassLoader);
+      }
+   }
+
+   private void ensureDependenciesAreResolved(MavenSession session)
+   {
+      final MojoDescriptor mojoDescriptor = new MojoDescriptor();
+      mojoDescriptor.setAggregator(false);
+      // mojoDescriptor.setDependencyCollectionRequired(getDependencyResolutionRequired());
+      mojoDescriptor.setDependencyResolutionRequired(getDependencyResolutionRequired());
+
+      final MojoExecution mojoExecution = new MojoExecution(mojoDescriptor);
+
+      final DependencyContext dependencyContext = mojoExecutor.newDependencyContext(session,
+         Collections.singletonList(mojoExecution));
+
+      try
+      {
+         mojoExecutor.ensureDependenciesAreResolved(mojoDescriptor, session, dependencyContext);
+      }
+      catch (LifecycleExecutionException e)
+      {
+         throw new IllegalStateException(e);
+      }
+   }
+
+   private Map<String, MavenProject> getProjectMap(List<MavenProject> projects)
+      throws org.apache.maven.DuplicateProjectException
+   {
+      Map<String, MavenProject> index = new LinkedHashMap<String, MavenProject>();
+      Map<String, List<File>> collisions = new LinkedHashMap<String, List<File>>();
+
+      for (MavenProject project : projects)
+      {
+         String projectId = ArtifactUtils.key(project.getGroupId(), project.getArtifactId(), project.getVersion());
+
+         MavenProject collision = index.get(projectId);
+
+         if (collision == null)
+         {
+            index.put(projectId, project);
+         }
+         else
+         {
+            List<File> pomFiles = collisions.get(projectId);
+
+            if (pomFiles == null)
+            {
+               pomFiles = new ArrayList<File>(Arrays.asList(collision.getFile(), project.getFile()));
+               collisions.put(projectId, pomFiles);
+            }
+            else
+            {
+               pomFiles.add(project.getFile());
+            }
+         }
+      }
+
+      if (!collisions.isEmpty())
+      {
+         throw new org.apache.maven.DuplicateProjectException("Two or more projects in the reactor"
+            + " have the same identifier, please make sure that <groupId>:<artifactId>:<version>"
+            + " is unique for each project: " + collisions, collisions);
+      }
+
+      return index;
+   }
+
+   protected abstract String getDependencyResolutionRequired();
+
+   protected abstract void adjustActualSession(MavenSession bootSession, MavenSession actualSession);
+
+   public void executionEnded(MavenSession actualSession, MavenExecutionResult executionResult)
+   {
+      final MavenSession oldSession = legacySupport.getSession();
+      try
+      {
+         final MavenSession bootSession = actualToBootSession.remove(actualSession);
+         bootToActualSession.remove(bootSession);
+
+         legacySupport.setSession(bootSession);
+         shutdownBootSession(bootSession);
+      }
+      finally
+      {
+         legacySupport.setSession(oldSession);
+      }
+
       plexusContainer.getContainerRealm().getWorld().removeListener(importEnforcer);
    }
 
-   private void executionEnded(List<MavenProject> projects)
+   private void shutdownBootSession(MavenSession bootSession)
    {
-      for (MavenProject project : projects)
+      for (MavenProject bootProject : bootSession.getProjects())
       {
-         fireBuildEvent(BuildEvent.AFTER, bootstrapSession, project);
-      }
-   }
+         bootSession.setCurrentProject(bootProject);
 
-   private void disposeProjectRealms(List<MavenProject> projects)
-   {
-      final ClassWorld classWorld = plexusContainer.getContainerRealm().getWorld();
-      for (MavenProject project : projects)
-      {
-         final ClassRealm classRealm = project.getClassRealm();
-         if (classRealm != null)
+         final List<ClassRealm> bootExtensionClassRealms = discoverBootExtensionClassRealms(bootProject);
+         for (ClassRealm bootExtensionClassRealm : bootExtensionClassRealms)
          {
-            try
-            {
-               classWorld.disposeRealm(classRealm.getId());
-            }
-            catch (NoSuchRealmException e)
-            { // noop
-            }
+            shutdownBootProject(bootSession, bootProject, bootExtensionClassRealm);
          }
       }
-      projectRealmCache.flush();
    }
 
-   private void fireBeforeBuild(BootstrapSession bootstrapSession, boolean resolveDependencies)
-      throws MavenExecutionException
+   private void shutdownBootProject(MavenSession bootSession, MavenProject bootProject,
+      ClassRealm bootExtensionClassRealm)
    {
-      WorkspaceReader reactorReader = null;
-
-      for (MavenProject bootstrapProject : bootstrapSession.getBootstrapProjects())
-      {
-         bootstrapSession.setCurrentBootstrapProject(bootstrapProject);
-
-         if (resolveDependencies)
-         {
-            if (reactorReader == null)
-            {
-               reactorReader = new ReactorReader(ReactorReader.getProjectMap(bootstrapSession.getBootstrapProjects()));
-            }
-            resolveDependencies(bootstrapSession, bootstrapProject, reactorReader);
-         }
-
-         fireBuildEvent(BuildEvent.BEFORE, bootstrapSession, bootstrapProject);
-      }
-   }
-
-   private void fireBuildEvent(BuildEvent event, final BootstrapSession session, final MavenProject project)
-   {
-      if (project.getClassRealm() == null)
-      {
-         return; // no extension registered on this project
-      }
-      final ClassRealm extensionRealm = getExtensionClassRealm(project.getClassRealm());
-      if (extensionRealm == null)
-      {
-         return;
-      }
-
-      final Thread fred = Thread.currentThread();
-      final ClassLoader contextClassLoader = fred.getContextClassLoader();
+      final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+      Thread.currentThread().setContextClassLoader(bootExtensionClassRealm);
       try
       {
-         fred.setContextClassLoader(extensionRealm);
-
-         for (BootstrapParticipant bootstrapParticipants : getBootstrapParticipants(session.getMavenSession(), project))
+         final List<BootstrapParticipant> bootParticipants = discoverBootstrapParticipants(bootSession, bootProject,
+            bootExtensionClassRealm);
+         for (BootstrapParticipant bootParticipant : bootParticipants)
          {
-            logger.info("Invoking bootstrap participant '" + bootstrapParticipants.getClass().getSimpleName()
-               + "' on project '" + project.getName() + "'");
-            try
-            {
-               switch (event)
-               {
-                  case BEFORE :
-                     bootstrapParticipants.beforeBuild(session, project);
-                     break;
-                  case AFTER :
-                     bootstrapParticipants.afterBuild(session, project);
-                     break;
-                  default :
-                     throw new IllegalStateException();
-               }
-            }
-            catch (RuntimeException e)
-            {
-               logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
-                  + "' on project '" + project.getName() + "' failed", e);
-            }
-            catch (Exception e)
-            {
-               logger.error("Invoking buildwrapper '" + bootstrapParticipants.getClass().getSimpleName()
-                  + "' on project '" + project.getName() + "' failed", e);
-            }
+            bootParticipant.afterBuild(bootSession, bootProject, bootToActualSession.get(bootSession));
          }
       }
       finally
       {
-         fred.setContextClassLoader(contextClassLoader);
+         Thread.currentThread().setContextClassLoader(originalClassLoader);
       }
    }
 
-   private List<BootstrapParticipant> getBootstrapParticipants(MavenSession session, MavenProject project)
+   private List<BootstrapParticipant> discoverBootstrapParticipants(MavenSession bootSession, MavenProject bootProject,
+      ClassRealm bootExtensionClassRealm)
    {
-      final String fqn = BootstrapParticipant.class.getName();
+      final String key = BootstrapParticipant.class.getName() + "@" + bootExtensionClassRealm.getId();
 
       @SuppressWarnings("unchecked")
-      List<BootstrapParticipant> bootstrapParticipants = (List<BootstrapParticipant>) project.getContextValue(fqn);
-      if (bootstrapParticipants != null)
+      List<BootstrapParticipant> bootstrapParticipants = (List<BootstrapParticipant>) bootProject.getContextValue(key);
+      if (bootstrapParticipants == null)
       {
-         return bootstrapParticipants;
+         bootstrapParticipants = lookupBootstrapParticipants(bootSession, bootProject, bootExtensionClassRealm);
+         bootProject.setContextValue(key, bootstrapParticipants);
       }
-
-      final ClassRealm projectRealm = project.getClassRealm();
-      if (projectRealm == null) // no extensions for this project
-      {
-         bootstrapParticipants = new ArrayList<BootstrapParticipant>();
-      }
-      else
-      {
-         bootstrapParticipants = lookupBootstrapParticipants(session, project, projectRealm);
-      }
-
-      project.setContextValue(fqn, bootstrapParticipants);
-
       return bootstrapParticipants;
    }
 
-   private List<BootstrapParticipant> lookupBootstrapParticipants(MavenSession session, MavenProject project,
-      final ClassRealm projectRealm)
+   private List<BootstrapParticipant> lookupBootstrapParticipants(MavenSession bootSession, MavenProject bootProject,
+      ClassRealm bootExtensionClassRealm)
    {
-      final ClassRealm extensionRealm = getExtensionClassRealm(projectRealm);
-      if (extensionRealm == null)
-      {
-         return new ArrayList<BootstrapParticipant>();
-      }
-
       final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-      Thread.currentThread().setContextClassLoader(extensionRealm);
+      Thread.currentThread().setContextClassLoader(bootExtensionClassRealm);
       try
       {
          InjectorRequest request = new InjectorRequest();
          request.setUseIndex(true);
-         request.getClassLoaders().add(extensionRealm);
-
-         addCustomClassLoaders(session, project, extensionRealm, request.getClassLoaders());
-
-         final Guplex guplex = plexusContainer.lookup(Guplex.class);
+         request.getClassLoaders().add(bootExtensionClassRealm);
+         // addCustomClassLoaders(bootSession, bootProject, bootExtensionClassRealm, request.getClassLoaders());
 
          final Injector injector = guplex.createInjector(request);
-         final BeanLocator locator = injector.getInstance(BeanLocator.class);
 
+         final BeanLocator locator = injector.getInstance(BeanLocator.class);
          final Key<BootstrapParticipant> key = Key.get(BootstrapParticipant.class);
          final List<BootstrapParticipant> result = new ArrayList<BootstrapParticipant>();
          for (BeanEntry<Annotation, BootstrapParticipant> beanEntry : locator.locate(key))
@@ -323,112 +361,34 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          }
          return result;
       }
-      catch (ComponentLookupException e)
-      {
-         throw new IllegalStateException(e);
-      }
       finally
       {
          Thread.currentThread().setContextClassLoader(originalClassLoader);
       }
    }
 
-   @Requirement
-   private ResolutionErrorHandler resolutionErrorHandler;
-
-   private void addCustomClassLoaders(MavenSession session, MavenProject project, ClassRealm extensionRealm,
-      Set<ClassLoader> classLoaders)
+   private List<ClassRealm> discoverBootExtensionClassRealms(MavenProject bootProject)
    {
-      final Dependency dependency = new Dependency();
-      dependency.setGroupId("org.sourcepit.b2");
-      dependency.setArtifactId("b2-p2-site-generator");
-      dependency.setVersion("0.1.0-SNAPSHOT");
+      final List<ClassRealm> bootExtensionRelams = new ArrayList<ClassRealm>();
 
-      final ArtifactResolutionResult result = resolve(session, project, dependency);
-
-      final Set<org.apache.maven.artifact.Artifact> artifacts = result.getArtifacts();
-      final URL[] urls = new URL[artifacts.size()];
-      int i = 0;
-      for (Iterator<org.apache.maven.artifact.Artifact> it = artifacts.iterator(); it.hasNext(); i++)
+      final ClassRealm projectRealm = bootProject.getClassRealm();
+      if (projectRealm != null)
       {
-         final org.apache.maven.artifact.Artifact artifact = it.next();
-         try
-         {
-            urls[i] = artifact.getFile().toURL();
-         }
-         catch (MalformedURLException e)
-         {
-            throw new IllegalStateException(e);
-         }
-      }
-
-      classLoaders.add(new URLClassLoader(urls, extensionRealm));
-   }
-
-   private ArtifactResolutionResult resolve(MavenSession session, MavenProject project, Dependency dependency)
-   {
-      final ArtifactResolutionRequest request = new ArtifactResolutionRequest();
-      request.setResolveRoot(true);
-      request.setResolveTransitively(true);
-      request
-         .setResolutionFilter(new ScopeArtifactFilter(org.apache.maven.artifact.Artifact.SCOPE_RUNTIME_PLUS_SYSTEM));
-      request
-         .setCollectionFilter(new ScopeArtifactFilter(org.apache.maven.artifact.Artifact.SCOPE_RUNTIME_PLUS_SYSTEM));
-
-      final MavenExecutionRequest executionRequest = session.getRequest();
-      request.setForceUpdate(executionRequest.isUpdateSnapshots());
-      request.setServers(executionRequest.getServers());
-      request.setMirrors(executionRequest.getMirrors());
-      request.setProxies(executionRequest.getProxies());
-
-      request.setOffline(session.isOffline());
-      request.setLocalRepository(session.getLocalRepository());
-
-      // project specific
-      request.setRemoteRepositories(project.getRemoteArtifactRepositories());
-      request.setManagedVersionMap(project.getManagedVersionMap());
-
-      request.setArtifact(repositorySystem.createDependencyArtifact(dependency));
-
-
-      final ArtifactResolutionResult result = repositorySystem.resolve(request);
-      try
-      {
-         resolutionErrorHandler.throwErrors(request, result);
-      }
-      catch (ArtifactResolutionException e)
-      {
-         throw new IllegalStateException(e);
-      }
-      return result;
-   }
-
-   private ClassRealm getExtensionClassRealm(ClassRealm projectRealm)
-   {
-      List<ClassRealm> relams = new ArrayList<ClassRealm>();
-      collectRealms(relams, projectRealm);
-      return relams.isEmpty() ? null : relams.get(0);
-   }
-
-   private void collectRealms(Collection<? super ClassRealm> realms, ClassRealm classRealm)
-   {
-      if (!realms.contains(classRealm))
-      {
-         if (isExtensionRealm(extensionRealmPrefixes, classRealm))
-         {
-            realms.add(classRealm);
-         }
-
          @SuppressWarnings("unchecked")
-         Collection<ClassRealm> importRealms = classRealm.getImportRealms();
-         for (ClassRealm importRealm : importRealms)
+         final Collection<ClassRealm> importRealms = projectRealm.getImportRealms();
+         for (ClassRealm classRealm : importRealms)
          {
-            collectRealms(realms, importRealm);
+            if (isBootExtensionClassRealm(extensionRealmPrefixes, classRealm))
+            {
+               bootExtensionRelams.add(classRealm);
+            }
          }
       }
+
+      return bootExtensionRelams;
    }
 
-   private static boolean isExtensionRealm(Collection<String> extensionRealmPrefixes, ClassRealm realm)
+   private static boolean isBootExtensionClassRealm(Collection<String> extensionRealmPrefixes, ClassRealm realm)
    {
       for (String realmPrefix : extensionRealmPrefixes)
       {
@@ -440,34 +400,11 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       return false;
    }
 
-   private List<MavenProject> createBootstrapProjects(MavenSession session, Collection<File> descriptors,
-      Collection<File> skippedDescriptors) throws MavenExecutionException
+   private List<MavenProject> buildBootstrapProjects(MavenSession session, Collection<File> descriptors,
+      Collection<File> skippedDescriptors)
    {
-      final MavenExecutionRequest execRequest = session.getRequest();
-
-      final DefaultProjectBuildingRequest projectBuildingRequest = new DefaultProjectBuildingRequest();
-      projectBuildingRequest.setLocalRepository(execRequest.getLocalRepository());
-      projectBuildingRequest.setSystemProperties(execRequest.getSystemProperties());
-      projectBuildingRequest.setUserProperties(execRequest.getUserProperties());
-
-      final List<ArtifactRepository> remoteRepositories = new ArrayList<ArtifactRepository>();
-      for (ArtifactRepository remoteRepository : execRequest.getRemoteRepositories())
-      {
-         if (!"p2".equals(remoteRepository.getLayout().getId()))
-         {
-            remoteRepositories.add(remoteRepository);
-         }
-      }
-      projectBuildingRequest.setRemoteRepositories(remoteRepositories);
-
-      projectBuildingRequest.setPluginArtifactRepositories(execRequest.getPluginArtifactRepositories());
-      projectBuildingRequest.setActiveProfileIds(execRequest.getActiveProfiles());
-      projectBuildingRequest.setInactiveProfileIds(execRequest.getInactiveProfiles());
-      projectBuildingRequest.setProfiles(execRequest.getProfiles());
-      projectBuildingRequest.setProcessPlugins(true);
-      projectBuildingRequest.setBuildStartTime(execRequest.getStartTime());
-      projectBuildingRequest.setRepositorySession(session.getRepositorySession());
-      projectBuildingRequest.setResolveDependencies(true);
+      final ProjectBuildingRequest request = new DefaultProjectBuildingRequest(session.getProjectBuildingRequest());
+      request.setRemoteRepositories(filterArtifactRepositories(request.getRemoteRepositories()));
 
       final List<File> pomFiles = new ArrayList<File>();
       for (File descriptor : descriptors)
@@ -483,40 +420,22 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       final List<ProjectBuildingResult> results;
       try
       {
-         results = projectBuilder.build(pomFiles, false, projectBuildingRequest);
+         results = projectBuilder.build(pomFiles, false, request);
       }
       catch (ProjectBuildingException e)
       {
-         throw new MavenExecutionException("Cannot build bootstrapper project for " + e.getPomFile(), e);
+         throw new IllegalStateException("Cannot build bootstrapper project for " + e.getPomFile(), e);
       }
 
       final List<MavenProject> projects = new ArrayList<MavenProject>(results.size());
       for (ProjectBuildingResult result : results)
       {
-         MavenProject project = result.getProject();
-
-         final List<ArtifactRepository> remoteArtifactRepositories = new ArrayList<ArtifactRepository>();
-         for (ArtifactRepository remoteRepository : project.getRemoteArtifactRepositories())
-         {
-            if (!"p2".equals(remoteRepository.getLayout().getId()))
-            {
-               remoteArtifactRepositories.add(remoteRepository);
-            }
-         }
-         project.setRemoteArtifactRepositories(remoteArtifactRepositories);
-
-         final List<ArtifactRepository> remotePluginRepositories = new ArrayList<ArtifactRepository>();
-         for (ArtifactRepository remoteRepository : project.getPluginArtifactRepositories())
-         {
-            if (!"p2".equals(remoteRepository.getLayout().getId()))
-            {
-               remotePluginRepositories.add(remoteRepository);
-            }
-         }
-         project.setPluginArtifactRepositories(remotePluginRepositories);
-
+         final MavenProject project = result.getProject();
+         project.setRemoteArtifactRepositories(filterArtifactRepositories(project.getRemoteArtifactRepositories()));
+         project.setPluginArtifactRepositories(filterArtifactRepositories(project.getPluginArtifactRepositories()));
          projects.add(project);
       }
+
       final ProjectSorter projectSorter;
       try
       {
@@ -531,104 +450,13 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          throw new IllegalStateException(e);
       }
 
-      final List<MavenProject> sortedProjects = projectSorter.getSortedProjects();
-      if (threadToProjects.containsKey(Thread.currentThread()))
-      {
-         throw new IllegalStateException();
-      }
-      threadToProjects.put(Thread.currentThread(), sortedProjects);
-
-      return sortedProjects;
+      return projectSorter.getSortedProjects();
    }
 
-   private void resolveDependencies(final BootstrapSession bootSession, MavenProject mavenProject,
-      WorkspaceReader reactorReader)
-   {
-      final ProjectBuildingRequest request = mavenProject.getProjectBuildingRequest();
-      DefaultRepositorySystemSession repoSession = (DefaultRepositorySystemSession) request.getRepositorySession();
+   protected abstract List<ArtifactRepository> filterArtifactRepositories(List<ArtifactRepository> remoteRepositories);
 
-      RepositoryListener repositoryListener = repoSession.getRepositoryListener();
-
-      ChainedRepositoryListener chainedRepositoryListener = new ChainedRepositoryListener();
-      chainedRepositoryListener.add(repositoryListener);
-      chainedRepositoryListener.add(new AbstractRepositoryListener()
-      {
-         @Override
-         public void artifactDownloaded(RepositoryEvent event)
-         {
-            final Artifact artifact = event.getArtifact();
-            final File file = artifact.getFile();
-
-            if (event.getException() == null && file != null && artifact.getFile().exists())
-            {
-               if (event.getRepository() instanceof RemoteRepository)
-               {
-                  final RemoteRepository remoteRepository = (RemoteRepository) event.getRepository();
-
-                  final String repoId = remoteRepository.getId();
-                  final String repoUrl = remoteRepository.getUrl();
-
-                  final Repository r = new Repository();
-                  r.setId(repoId);
-                  r.setUrl(repoUrl);
-
-                  @SuppressWarnings("unchecked")
-                  Map<File, Repository> fileToRepositoryMap = (Map<File, Repository>) bootSession.getData("downloads");
-                  if (fileToRepositoryMap == null)
-                  {
-                     fileToRepositoryMap = new HashMap<File, Repository>();
-                     bootSession.setData("downloads", fileToRepositoryMap);
-                  }
-                  fileToRepositoryMap.put(file, r);
-               }
-            }
-         }
-      });
-
-      repoSession.setRepositoryListener(chainedRepositoryListener);
-
-      final List<ArtifactRepository> oldRepos = request.getRemoteRepositories();
-      final List<ArtifactRepository> oldPluginRepos = request.getPluginArtifactRepositories();
-      try
-      {
-         repoSession.setWorkspaceReader(reactorReader);
-         request.setProject(mavenProject);
-
-         List<ArtifactRepository> remoteRepositories = new ArrayList<ArtifactRepository>();
-         for (ArtifactRepository remoteRepository : mavenProject.getRemoteArtifactRepositories())
-         {
-            if (!"p2".equals(remoteRepository.getLayout().getId()))
-            {
-               remoteRepositories.add(remoteRepository);
-            }
-         }
-         request.setRemoteRepositories(remoteRepositories);
-
-         remoteRepositories = new ArrayList<ArtifactRepository>();
-         for (ArtifactRepository remoteRepository : mavenProject.getPluginArtifactRepositories())
-         {
-            if (!"p2".equals(remoteRepository.getLayout().getId()))
-            {
-               remoteRepositories.add(remoteRepository);
-            }
-         }
-         request.setPluginArtifactRepositories(remoteRepositories);
-
-         projectBuilder.build(mavenProject.getFile(), request);
-      }
-      catch (ProjectBuildingException e)
-      {
-         throw new IllegalStateException(e);
-      }
-      finally
-      {
-         request.setProject(null);
-         request.setRemoteRepositories(oldRepos);
-         request.setPluginArtifactRepositories(oldPluginRepos);
-         repoSession.setWorkspaceReader(null);
-         repoSession.setRepositoryListener(repositoryListener);
-      }
-   }
+   protected abstract void discoverProjectDescriptors(MavenSession session, Collection<File> descriptors,
+      Collection<File> skippedDescriptors);
 
    private final static class ImportEnforcer implements ClassWorldListener
    {
@@ -656,7 +484,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
       public void realmCreated(ClassRealm realm)
       {
-         if (isExtensionRealm(extensionRealmPrefixes, realm))
+         if (isBootExtensionClassRealm(extensionRealmPrefixes, realm))
          {
             for (String packageImport : imports)
             {
@@ -668,10 +496,5 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       public void realmDisposed(ClassRealm realm)
       {
       }
-   }
-
-   private enum BuildEvent
-   {
-      BEFORE, AFTER
    }
 }

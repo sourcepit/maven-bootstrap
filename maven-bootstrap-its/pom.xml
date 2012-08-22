@@ -11,7 +11,7 @@
 	<packaging>maven-plugin</packaging>
 
 	<properties>
-		<it.maven.version>3.0.3</it.maven.version>
+		<it.maven.version>${maven.version}</it.maven.version>
 		<it.dir>${project.build.directory}/it</it.dir>
 		<it.bin.dir>${it.dir}/bin</it.bin.dir>
 		<it.user.home>${it.dir}/user.home</it.user.home>
