@@ -97,4 +97,31 @@ public class BuildBootstrapperIT extends ExternalMavenTest
       assertThat(it.next(), equalTo("afterBuild,org.sourcepit.it,module-project-b"));
       assertThat(it.next(), equalTo("afterBuild,org.sourcepit.it,module-project-a"));
    }
+   
+   @Test
+   public void testExtensionExtension() throws Exception
+   {
+      final File projectDir = getResource("extension-extensions");
+
+      final int error = build(projectDir, "-e", "-B", "compile", "-DallowExtensions=true");
+      assertThat(error, is(0));
+
+      Report bootstrapperReport = new Report(new File(projectDir, TestBootstrapper.class.getName() + ".txt"));
+      List<String> lines = bootstrapperReport.readLines();
+      assertThat(lines.size(), is(3));
+
+      Iterator<String> it = lines.iterator();
+      assertThat(it.next(), equalTo("discoverProjectDescriptors"));
+      assertThat(it.next(), equalTo("pom.xml"));
+      assertThat(it.next(), equalTo("adjustActualSession"));
+
+      Report participantReport = new Report(new File(projectDir, TestBootstrapParticipant.class.getName() + ".txt"));
+      lines = participantReport.readLines();
+      assertThat(lines.size(), is(3));
+
+      it = lines.iterator();
+      assertThat(it.next(), equalTo("beforeBuild,org.sourcepit.it,extension-extensions"));
+      assertThat(it.next(), equalTo(TestExtensionExtension.class.getName()));
+      assertThat(it.next(), equalTo("afterBuild,org.sourcepit.it,extension-extensions"));
+   }
 }

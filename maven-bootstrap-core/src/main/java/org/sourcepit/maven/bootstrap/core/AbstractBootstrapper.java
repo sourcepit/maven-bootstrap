@@ -6,21 +6,33 @@ package org.sourcepit.maven.bootstrap.core;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import org.apache.maven.MavenExecutionException;
+import org.apache.maven.ProjectDependenciesResolver;
+import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.artifact.repository.ArtifactRepository;
+import org.apache.maven.artifact.resolver.ArtifactResolutionException;
+import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
+import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
+import org.apache.maven.artifact.resolver.ResolutionErrorHandler;
+import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
+import org.apache.maven.classrealm.ClassRealmManager;
 import org.apache.maven.execution.DefaultMavenExecutionRequest;
 import org.apache.maven.execution.DefaultMavenExecutionResult;
 import org.apache.maven.execution.MavenExecutionRequest;
@@ -29,6 +41,7 @@ import org.apache.maven.execution.MavenSession;
 import org.apache.maven.lifecycle.LifecycleExecutionException;
 import org.apache.maven.lifecycle.internal.DependencyContext;
 import org.apache.maven.lifecycle.internal.MojoExecutor;
+import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.LegacySupport;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
@@ -40,10 +53,14 @@ import org.apache.maven.project.ProjectBuildingException;
 import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.project.ProjectBuildingResult;
 import org.apache.maven.project.ProjectSorter;
+import org.apache.maven.repository.RepositorySystem;
 import org.codehaus.plexus.PlexusContainer;
+import org.codehaus.plexus.classworlds.ClassWorld;
 import org.codehaus.plexus.classworlds.ClassWorldListener;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
+import org.codehaus.plexus.classworlds.realm.DuplicateRealmException;
 import org.codehaus.plexus.component.annotations.Requirement;
+import org.codehaus.plexus.configuration.PlexusConfigurationException;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.dag.CycleDetectedException;
 import org.sonatype.aether.util.DefaultRepositorySystemSession;
@@ -52,6 +69,8 @@ import org.sonatype.guice.bean.locators.BeanLocator;
 import org.sonatype.inject.BeanEntry;
 import org.sourcepit.guplex.Guplex;
 import org.sourcepit.guplex.InjectorRequest;
+import org.sourcepit.maven.bootstrap.internal.core.PluginConfigurationReader;
+import org.sourcepit.maven.bootstrap.internal.core.ReactorReader;
 import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
 import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
@@ -75,6 +94,21 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    @Requirement
    private ProjectBuilder projectBuilder;
 
+   @Requirement
+   private ProjectDependenciesResolver dependencyResolver;
+
+   @Requirement
+   private RepositorySystem repositorySystem;
+
+   @Requirement
+   private ResolutionErrorHandler resolutionErrorHandler;
+   
+   @Requirement
+   private ClassRealmManager classRealmManager;
+
+   @Requirement
+   private MojoExecutor mojoExecutor;
+
    private final ImportEnforcer importEnforcer;
 
    private final Set<String> extensionRealmPrefixes = new HashSet<String>();
@@ -82,11 +116,12 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    private final Map<MavenSession, MavenSession> actualToBootSession = new HashMap<MavenSession, MavenSession>();
    private final Map<MavenSession, MavenSession> bootToActualSession = new HashMap<MavenSession, MavenSession>();
 
-   @Requirement
-   private MojoExecutor mojoExecutor;
+   private final String extensionKey;
 
    public AbstractBootstrapper(String groupId, String artifactId)
    {
+      this.extensionKey = groupId + ":" + artifactId;
+
       final List<String> imports = new ArrayList<String>();
       imports.add("javax.inject.*");
       imports.add("com.google.inject.*");
@@ -95,13 +130,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
       imports.add(ImportEnforcer.toImportPattern(BootstrapParticipant.class));
 
-      final StringBuilder realmPrefix = new StringBuilder();
-      realmPrefix.append("extension>");
-      realmPrefix.append(groupId);
-      realmPrefix.append(":");
-      realmPrefix.append(artifactId);
-
-      extensionRealmPrefixes.add(realmPrefix.toString());
+      extensionRealmPrefixes.add("extension>" + extensionKey);
 
       importEnforcer = new ImportEnforcer(getClass().getClassLoader(), extensionRealmPrefixes, imports);
    }
@@ -348,7 +377,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          InjectorRequest request = new InjectorRequest();
          request.setUseIndex(true);
          request.getClassLoaders().add(bootExtensionClassRealm);
-         // addCustomClassLoaders(bootSession, bootProject, bootExtensionClassRealm, request.getClassLoaders());
+         addCustomClassLoaders(bootSession, bootProject, bootExtensionClassRealm, request.getClassLoaders());
 
          final Injector injector = guplex.createInjector(request);
 
@@ -365,6 +394,150 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       {
          Thread.currentThread().setContextClassLoader(originalClassLoader);
       }
+   }
+
+   protected void addCustomClassLoaders(MavenSession bootSession, MavenProject bootProject, ClassRealm extensionRealm,
+      Set<ClassLoader> classLoaders)
+   {
+      addExtensionExtensionsClassLoaders(bootSession, bootProject, extensionRealm, classLoaders);
+   }
+
+   protected final void addExtensionExtensionsClassLoaders(MavenSession bootSession, MavenProject bootProject,
+      ClassRealm extensionRealm, Set<ClassLoader> classLoaders)
+   {
+      if (isAllowExtensionExtensions(bootSession, bootProject))
+      {
+         final List<Dependency> extensions = getExtensionExtensions(bootSession, bootProject);
+         if (extensions != null)
+         {
+            for (Dependency extension : extensions)
+            {
+               final ClassRealm newRealm = createExtensionExtensionRealm(bootSession, bootProject, extensionRealm,
+                  extension);
+               try
+               {
+                  plexusContainer.discoverComponents(newRealm);
+               }
+               catch (PlexusConfigurationException e)
+               {
+                  throw new IllegalStateException(e);
+               }
+               classLoaders.add(newRealm);
+            }
+         }
+      }
+   }
+
+   protected abstract boolean isAllowExtensionExtensions(MavenSession bootSession, MavenProject bootProject);
+
+   private ClassRealm createExtensionExtensionRealm(MavenSession bootSession, MavenProject bootProject,
+      ClassRealm extensionRealm, Dependency extension)
+   {
+      final URL[] urls = resolveURLs(bootSession, bootProject, extension);
+
+      final String realmId = extensionRealm.getId() + "@" + extension.toString();
+      final ClassRealm newRealm = newRealm(extensionRealm.getWorld(), realmId);
+      for (int j = 0; j < urls.length; j++)
+      {
+         newRealm.addURL(urls[j]);
+      }
+      newRealm.importFrom(classRealmManager.getCoreRealm(), "org.sonatype.plexus.components");
+      newRealm.importFrom(extensionRealm, "");
+      return newRealm;
+   }
+
+   private URL[] resolveURLs(MavenSession bootSession, MavenProject bootProject, Dependency extension)
+   {
+      final ArtifactResolutionResult result = resolve(bootSession, bootProject, extension);
+
+      final Set<Artifact> artifacts = result.getArtifacts();
+
+      final URL[] urls = new URL[artifacts.size()];
+      int i = 0;
+      for (Iterator<org.apache.maven.artifact.Artifact> it = artifacts.iterator(); it.hasNext(); i++)
+      {
+         final org.apache.maven.artifact.Artifact artifact = it.next();
+         try
+         {
+            urls[i] = artifact.getFile().toURL();
+         }
+         catch (MalformedURLException e)
+         {
+            throw new IllegalStateException(e);
+         }
+      }
+      return urls;
+   }
+
+   private ClassRealm newRealm(ClassWorld world, String id)
+   {
+      synchronized (world)
+      {
+         String realmId = id;
+
+         Random random = new Random();
+
+         while (true)
+         {
+            try
+            {
+               ClassRealm classRealm = world.newRealm(realmId, null);
+
+               if (logger.isDebugEnabled())
+               {
+                  logger.debug("Created new class realm " + realmId);
+               }
+
+               return classRealm;
+            }
+            catch (DuplicateRealmException e)
+            {
+               realmId = id + '-' + random.nextInt();
+            }
+         }
+      }
+   }
+
+   protected List<Dependency> getExtensionExtensions(MavenSession bootSession, MavenProject bootProject)
+   {
+      return PluginConfigurationReader.readExtensions(bootProject, extensionKey);
+   }
+
+   private ArtifactResolutionResult resolve(MavenSession session, MavenProject project, Dependency dependency)
+   {
+      final ArtifactResolutionRequest request = new ArtifactResolutionRequest();
+      request.setResolveRoot(true);
+      request.setResolveTransitively(true);
+      request
+         .setResolutionFilter(new ScopeArtifactFilter(org.apache.maven.artifact.Artifact.SCOPE_RUNTIME_PLUS_SYSTEM));
+      request
+         .setCollectionFilter(new ScopeArtifactFilter(org.apache.maven.artifact.Artifact.SCOPE_RUNTIME_PLUS_SYSTEM));
+
+      final MavenExecutionRequest executionRequest = session.getRequest();
+      request.setForceUpdate(executionRequest.isUpdateSnapshots());
+      request.setServers(executionRequest.getServers());
+      request.setMirrors(executionRequest.getMirrors());
+      request.setProxies(executionRequest.getProxies());
+
+      request.setOffline(session.isOffline());
+      request.setLocalRepository(session.getLocalRepository());
+
+      // project specific
+      request.setRemoteRepositories(project.getRemoteArtifactRepositories());
+      request.setManagedVersionMap(project.getManagedVersionMap());
+
+      request.setArtifact(repositorySystem.createDependencyArtifact(dependency));
+
+      final ArtifactResolutionResult result = repositorySystem.resolve(request);
+      try
+      {
+         resolutionErrorHandler.throwErrors(request, result);
+      }
+      catch (ArtifactResolutionException e)
+      {
+         throw new IllegalStateException(e);
+      }
+      return result;
    }
 
    private List<ClassRealm> discoverBootExtensionClassRealms(MavenProject bootProject)

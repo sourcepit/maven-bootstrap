@@ -10,9 +10,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.component.annotations.Component;
 import org.sourcepit.common.utils.file.FileUtils;
 import org.sourcepit.common.utils.file.FileVisitor;
@@ -82,6 +84,17 @@ public class TestBootstrapper extends AbstractBootstrapper
          paths.add(PathUtils.getRelativePath(file.getAbsoluteFile(), baseDir, "/"));
       }
       report.println(paths);
+   }
+
+   @Override
+   protected boolean isAllowExtensionExtensions(MavenSession bootSession, MavenProject bootProject)
+   {
+      final Properties properties = new Properties();
+      properties.putAll(bootProject.getProperties());
+      properties.putAll(bootSession.getSystemProperties()); // session wins
+      properties.putAll(bootSession.getUserProperties());
+      
+      return Boolean.valueOf(properties.getProperty("allowExtensions", "false")).booleanValue();
    }
 
 }

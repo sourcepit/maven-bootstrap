@@ -10,6 +10,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.inject.Inject;
 import javax.inject.Named;
 
 import org.apache.maven.execution.MavenSession;
@@ -23,6 +24,9 @@ import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
 public class TestBootstrapParticipant implements BootstrapParticipant
 {
    private Report report = new Report(new File(getClass().getName() + ".txt").getAbsoluteFile());
+   
+   @Inject
+   private List<ExtensionExtension> extensionExtensions;
 
    public void beforeBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession)
    {
@@ -30,7 +34,13 @@ public class TestBootstrapParticipant implements BootstrapParticipant
       values.add("beforeBuild");
       values.add(bootProject.getGroupId());
       values.add(bootProject.getArtifactId());
-      report.println(values);      
+      
+      report.println(values);
+      
+      for (ExtensionExtension ext : extensionExtensions)
+      {
+         report.println(ext.getClass().getName());
+      }
    }
 
    public void afterBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession)

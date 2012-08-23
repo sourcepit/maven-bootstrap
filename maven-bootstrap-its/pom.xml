@@ -62,6 +62,15 @@
 		</dependency>
 	</dependencies>
 	<build>
+		<!-- <resources> -->
+		<!-- <resource> -->
+		<!-- <directory>src/java/resources</directory> -->
+		<!-- </resource> -->
+		<!-- <resource> -->
+		<!-- <directory>src/ext/java</directory> -->
+		<!-- <targetPath>${project.directory}/extension-classes</targetPath> -->
+		<!-- </resource> -->
+		<!-- </resources> -->
 		<testResources>
 			<testResource>
 				<directory>src/test/resources</directory>
