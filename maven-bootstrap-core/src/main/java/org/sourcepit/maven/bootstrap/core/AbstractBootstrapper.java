@@ -69,6 +69,8 @@ import org.sonatype.guice.bean.locators.BeanLocator;
 import org.sonatype.inject.BeanEntry;
 import org.sourcepit.guplex.Guplex;
 import org.sourcepit.guplex.InjectorRequest;
+import org.sourcepit.maven.bootstrap.internal.core.ExtensionDescriptor;
+import org.sourcepit.maven.bootstrap.internal.core.ExtensionDescriptorReader;
 import org.sourcepit.maven.bootstrap.internal.core.PluginConfigurationReader;
 import org.sourcepit.maven.bootstrap.internal.core.ReactorReader;
 import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
@@ -102,7 +104,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    @Requirement
    private ResolutionErrorHandler resolutionErrorHandler;
-   
+
    @Requirement
    private ClassRealmManager classRealmManager;
 
@@ -441,8 +443,28 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       {
          newRealm.addURL(urls[j]);
       }
+
       newRealm.importFrom(classRealmManager.getCoreRealm(), "org.sonatype.plexus.components");
-      newRealm.importFrom(extensionRealm, "");
+
+      importEnforcer.addBootstrapImports(newRealm);
+
+      if (extensionRealm.getURLs().length > 0)
+      {
+         final ExtensionDescriptor extensionDescriptor = ExtensionDescriptorReader.read(extensionRealm.getURLs()[0]);
+         if (extensionDescriptor == null)
+         {
+            newRealm.importFrom(extensionRealm, "");
+         }
+         else
+         {
+            for (String exportedPackage : extensionDescriptor.getExportedPackages())
+            {
+               newRealm.importFrom(extensionRealm, exportedPackage);
+            }
+            newRealm.importFrom(classRealmManager.getMavenApiRealm(), "");
+         }
+      }
+
       return newRealm;
    }
 
@@ -659,10 +681,15 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       {
          if (isBootExtensionClassRealm(extensionRealmPrefixes, realm))
          {
-            for (String packageImport : imports)
-            {
-               realm.importFrom(classLoader, packageImport);
-            }
+            addBootstrapImports(realm);
+         }
+      }
+
+      private void addBootstrapImports(ClassRealm realm)
+      {
+         for (String packageImport : imports)
+         {
+            realm.importFrom(classLoader, packageImport);
          }
       }
 
