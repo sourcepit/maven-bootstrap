@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.sourcepit</groupId>
 		<artifactId>srcpit-parent</artifactId>
-		<version>7-SNAPSHOT</version>
+		<version>7</version>
 		<relativePath>../srcpit-parent</relativePath>
 	</parent>
 
