@@ -4,8 +4,7 @@
 	<parent>
 		<groupId>org.sourcepit</groupId>
 		<artifactId>srcpit-parent</artifactId>
-		<version>7</version>
-		<relativePath>../srcpit-parent</relativePath>
+		<version>8</version>
 	</parent>
 
 	<groupId>org.sourcepit.tools</groupId>
@@ -51,7 +50,7 @@
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-maven</artifactId>
-				<version>0.1.0-alpha-6</version>
+				<version>0.1.0-alpha-7</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
