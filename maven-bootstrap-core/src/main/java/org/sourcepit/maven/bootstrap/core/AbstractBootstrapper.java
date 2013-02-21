@@ -129,6 +129,8 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       imports.add("com.google.inject.*");
       imports.add("com.google.inject.name.*");
       imports.add("org.sonatype.inject.*");
+      imports.add("org.slf4j.*");
+      imports.add("org.slf4j.impl.*");
 
       imports.add(ImportEnforcer.toImportPattern(BootstrapParticipant.class));
 
@@ -379,6 +381,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          InjectorRequest request = new InjectorRequest();
          request.setUseIndex(true);
          request.getClassLoaders().add(bootExtensionClassRealm);
+
          addCustomClassLoaders(bootSession, bootProject, bootExtensionClassRealm, request.getClassLoaders());
 
          final Injector injector = guplex.createInjector(request);
