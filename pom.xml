@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.sourcepit</groupId>
 		<artifactId>srcpit-parent</artifactId>
-		<version>8</version>
+		<version>9</version>
 	</parent>
 
 	<groupId>org.sourcepit.tools</groupId>
@@ -46,7 +46,7 @@
 			<dependency>
 				<groupId>org.sourcepit</groupId>
 				<artifactId>guice-plexus-bridge</artifactId>
-				<version>0.1.0-alpha-5</version>
+				<version>0.1.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit</groupId>
@@ -56,17 +56,17 @@
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-maven</artifactId>
-				<version>0.1.0-alpha-7</version>
+				<version>0.1.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-testing</artifactId>
-				<version>0.1.0-alpha-6</version>
+				<version>0.1.0-SNAPSHOT</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-utils</artifactId>
-				<version>0.1.0-alpha-4</version>
+				<version>0.1.0-SNAPSHOT</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -74,11 +74,6 @@
 	<build>
 		<pluginManagement>
 			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-deploy-plugin</artifactId>
-					<version>2.6</version>
-				</plugin>
 				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself. -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>
@@ -123,7 +118,7 @@
 					<plugin>
 						<groupId>org.sourcepit.tools</groupId>
 						<artifactId>maven-install-plugin</artifactId>
-						<version>0.1.0-alpha-2</version>
+						<version>0.1.0-SNAPSHOT</version>
 						<executions>
 							<execution>
 								<id>pre-integration-test</id>
@@ -197,20 +192,6 @@
 					</plugin>
 				</plugins>
 			</build>
-		</profile>
-		<profile>
-			<id>vr</id>
-			<distributionManagement>
-				<snapshotRepository>
-					<id>srcpit.snapshots</id>
-					<uniqueVersion>false</uniqueVersion>
-					<url>${env.VR_MAVEN_REPO_URL}/srcpit-snapshots/</url>
-				</snapshotRepository>
-				<repository>
-					<id>srcpit.releases</id>
-					<url>${env.VR_MAVEN_REPO_URL}/srcpit-releases/</url>
-				</repository>
-			</distributionManagement>
 		</profile>
 	</profiles>
 
