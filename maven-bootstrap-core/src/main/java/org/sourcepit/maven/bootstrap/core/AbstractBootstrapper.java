@@ -23,7 +23,6 @@ import java.util.Random;
 import java.util.Set;
 
 import org.apache.maven.MavenExecutionException;
-import org.apache.maven.ProjectDependenciesResolver;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.artifact.repository.ArtifactRepository;
@@ -97,9 +96,6 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    private ProjectBuilder projectBuilder;
 
    @Requirement
-   private ProjectDependenciesResolver dependencyResolver;
-
-   @Requirement
    private RepositorySystem repositorySystem;
 
    @Requirement
@@ -142,19 +138,47 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    public void executionStarted(MavenSession actualSession, MavenExecutionRequest executionRequest)
       throws MavenExecutionException
    {
-      plexusContainer.getContainerRealm().getWorld().addListener(importEnforcer);
-
       final MavenSession bootSession = createBootSession(actualSession);
+
+      final List<File> descriptors = getProjectDescriptors(bootSession);
+      if (descriptors.isEmpty())
+      {
+         logger.info("Skipping bootstrapper " + extensionKey + ". No projects found.");
+         return;
+      }
+
+
       mapSessions(actualSession, bootSession);
+      
+      logger.info("Executing bootstrapper " + extensionKey + "...");
+      
+      plexusContainer.getContainerRealm().getWorld().addListener(importEnforcer);
 
       final MavenSession oldSession = legacySupport.getSession();
       try
       {
          legacySupport.setSession(bootSession);
+         setupBootSession(bootSession, descriptors);
 
-         setupBootSession(bootSession);
+         final List<MavenProject> projects = bootSession.getProjects();
+         if (projects.size() > 1)
+         {
+            logger.info("");
+            logger.info("------------------------------------------------------------------------");
+            logger.info("Bootstrapper Build Order:");
+            logger.info("");
+            for (MavenProject project : projects)
+            {
+               logger.info(project.getName());
+            }
+         }
+
          performBootSession(bootSession);
          adjustActualSession(bootSession, actualSession);
+         
+         logger.info("------------------------------------------------------------------------");
+         logger.info("");
+         logger.info("Finished bootstrapper " + extensionKey);
       }
       finally
       {
@@ -177,13 +201,9 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       bootToActualSession.put(bootSession, actualSession);
    }
 
-   private void setupBootSession(MavenSession bootSession)
+   private void setupBootSession(MavenSession bootSession, Collection<File> descriptors)
    {
-      final Collection<File> descriptors = new LinkedHashSet<File>();
-      final Collection<File> skippedDescriptors = new HashSet<File>();
-      discoverProjectDescriptors(bootSession, descriptors, skippedDescriptors);
-
-      bootSession.setProjects(buildBootstrapProjects(bootSession, descriptors, skippedDescriptors));
+      bootSession.setProjects(buildBootstrapProjects(bootSession, descriptors));
 
       try
       {
@@ -305,10 +325,15 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    public void executionEnded(MavenSession actualSession, MavenExecutionResult executionResult)
    {
+      final MavenSession bootSession = actualToBootSession.remove(actualSession);
+      if (bootSession == null)
+      {
+         return;
+      }
+
       final MavenSession oldSession = legacySupport.getSession();
       try
       {
-         final MavenSession bootSession = actualToBootSession.remove(actualSession);
          bootToActualSession.remove(bootSession);
 
          legacySupport.setSession(bootSession);
@@ -484,7 +509,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          final org.apache.maven.artifact.Artifact artifact = it.next();
          try
          {
-            urls[i] = artifact.getFile().toURL();
+            urls[i] = artifact.getFile().toURI().toURL();
          }
          catch (MalformedURLException e)
          {
@@ -598,27 +623,15 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       return false;
    }
 
-   private List<MavenProject> buildBootstrapProjects(MavenSession session, Collection<File> descriptors,
-      Collection<File> skippedDescriptors)
+   private List<MavenProject> buildBootstrapProjects(MavenSession session, Collection<File> descriptors)
    {
       final ProjectBuildingRequest request = new DefaultProjectBuildingRequest(session.getProjectBuildingRequest());
       request.setRemoteRepositories(filterArtifactRepositories(request.getRemoteRepositories()));
 
-      final List<File> pomFiles = new ArrayList<File>();
-      for (File descriptor : descriptors)
-      {
-         if (skippedDescriptors.contains(descriptor))
-         {
-            logger.info("Skipping module descriptor " + descriptor.getPath());
-            continue;
-         }
-         pomFiles.add(descriptor);
-      }
-
       final List<ProjectBuildingResult> results;
       try
       {
-         results = projectBuilder.build(pomFiles, false, request);
+         results = projectBuilder.build(new ArrayList<File>(descriptors), false, request);
       }
       catch (ProjectBuildingException e)
       {
@@ -652,6 +665,25 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    }
 
    protected abstract List<ArtifactRepository> filterArtifactRepositories(List<ArtifactRepository> remoteRepositories);
+
+   private List<File> getProjectDescriptors(final MavenSession bootSession)
+   {
+      final Collection<File> descriptors = new LinkedHashSet<File>();
+      final Collection<File> skippedDescriptors = new HashSet<File>();
+      discoverProjectDescriptors(bootSession, descriptors, skippedDescriptors);
+
+      final List<File> pomFiles = new ArrayList<File>();
+      for (File descriptor : descriptors)
+      {
+         if (skippedDescriptors.contains(descriptor))
+         {
+            logger.info("Skipping module descriptor " + descriptor.getPath());
+            continue;
+         }
+         pomFiles.add(descriptor);
+      }
+      return pomFiles;
+   }
 
    protected abstract void discoverProjectDescriptors(MavenSession session, Collection<File> descriptors,
       Collection<File> skippedDescriptors);
