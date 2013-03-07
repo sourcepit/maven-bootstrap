@@ -176,8 +176,8 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          performBootSession(bootSession);
          adjustActualSession(bootSession, actualSession);
          
-         logger.info("------------------------------------------------------------------------");
          logger.info("");
+         logger.info("------------------------------------------------------------------------");
          logger.info("Finished bootstrapper " + extensionKey);
       }
       finally
