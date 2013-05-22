@@ -8,9 +8,9 @@ package org.sourcepit.maven.bootstrap.internal.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.sourcepit.common.utils.io.IOResources.buffOut;
-import static org.sourcepit.common.utils.io.IOResources.fileOut;
-import static org.sourcepit.common.utils.io.IOResources.zipOut;
+import static org.sourcepit.common.utils.io.IO.buffOut;
+import static org.sourcepit.common.utils.io.IO.fileOut;
+import static org.sourcepit.common.utils.io.IO.zipOut;
 import static org.sourcepit.common.utils.xml.XmlUtils.newDocument;
 import static org.sourcepit.common.utils.xml.XmlUtils.writeXml;
 

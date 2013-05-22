@@ -6,10 +6,10 @@
 
 package org.sourcepit.maven.bootstrap.internal.core;
 
-import static org.sourcepit.common.utils.io.IOResources.buffIn;
-import static org.sourcepit.common.utils.io.IOResources.fileIn;
-import static org.sourcepit.common.utils.io.IOResources.urlIn;
-import static org.sourcepit.common.utils.io.IOResources.zipIn;
+import static org.sourcepit.common.utils.io.IO.buffIn;
+import static org.sourcepit.common.utils.io.IO.fileIn;
+import static org.sourcepit.common.utils.io.IO.urlIn;
+import static org.sourcepit.common.utils.io.IO.zipIn;
 import static org.sourcepit.common.utils.xml.XmlUtils.queryNodes;
 import static org.sourcepit.common.utils.xml.XmlUtils.readXml;
 
@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
+import org.sourcepit.common.utils.io.IOFactory;
 import org.sourcepit.common.utils.io.IOOperation;
-import org.sourcepit.common.utils.io.IOResource;
-import org.sourcepit.common.utils.io.ZipEntryResource;
+import org.sourcepit.common.utils.io.factories.ZipInputStreamFactory;
 import org.sourcepit.common.utils.lang.PipedIOException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -41,9 +41,9 @@ public class ExtensionDescriptorReader
       return doc == null ? null : read(doc);
    }
 
-   private static Document readDocument(IOResource<? extends InputStream> resource)
+   private static Document readDocument(IOFactory<? extends InputStream> resource)
    {
-      final ZipEntryResource zipIn = zipIn(buffIn(resource), "META-INF/maven/extension.xml");
+      final ZipInputStreamFactory zipIn = zipIn(buffIn(resource), "META-INF/maven/extension.xml");
       
       final Document[] extensionDoc = new Document[1];
 
