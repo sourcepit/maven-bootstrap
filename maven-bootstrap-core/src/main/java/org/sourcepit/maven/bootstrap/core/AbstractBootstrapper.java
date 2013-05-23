@@ -191,6 +191,8 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       final DefaultRepositorySystemSession repositorySession = new DefaultRepositorySystemSession(
          actualSession.getRepositorySession());
       final MavenExecutionRequest executionRequest = DefaultMavenExecutionRequest.copy(actualSession.getRequest());
+      // fix: copy ignors start time...
+      executionRequest.setStartTime(actualSession.getRequest().getStartTime());
       final DefaultMavenExecutionResult executionResult = new DefaultMavenExecutionResult();
       return new MavenSession(plexusContainer, repositorySession, executionRequest, executionResult);
    }
