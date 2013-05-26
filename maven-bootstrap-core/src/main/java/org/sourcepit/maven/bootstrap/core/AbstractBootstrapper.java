@@ -407,6 +407,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       {
          InjectorRequest request = new InjectorRequest();
          request.setUseIndex(true);
+         request.setInitEPackages(true);
          request.getClassLoaders().add(bootExtensionClassRealm);
 
          addCustomClassLoaders(bootSession, bootProject, bootExtensionClassRealm, request.getClassLoaders());
