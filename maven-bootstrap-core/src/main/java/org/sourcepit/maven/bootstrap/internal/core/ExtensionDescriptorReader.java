@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-import org.sourcepit.common.utils.io.IOFactory;
+import org.sourcepit.common.utils.io.IOHandle;
 import org.sourcepit.common.utils.io.IOOperation;
-import org.sourcepit.common.utils.io.factories.ZipInputStreamFactory;
+import org.sourcepit.common.utils.io.handles.ZipInputStreamHandle;
 import org.sourcepit.common.utils.lang.PipedIOException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -41,9 +41,9 @@ public class ExtensionDescriptorReader
       return doc == null ? null : read(doc);
    }
 
-   private static Document readDocument(IOFactory<? extends InputStream> resource)
+   private static Document readDocument(IOHandle<? extends InputStream> resource)
    {
-      final ZipInputStreamFactory zipIn = zipIn(buffIn(resource), "META-INF/maven/extension.xml");
+      final ZipInputStreamHandle zipIn = zipIn(buffIn(resource), "META-INF/maven/extension.xml");
       
       final Document[] extensionDoc = new Document[1];
 

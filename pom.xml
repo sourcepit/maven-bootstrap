@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.sourcepit</groupId>
 		<artifactId>srcpit-parent</artifactId>
-		<version>10-SNAPSHOT</version>
+		<version>10</version>
 	</parent>
 
 	<groupId>org.sourcepit.tools</groupId>
@@ -46,27 +46,27 @@
 			<dependency>
 				<groupId>org.sourcepit</groupId>
 				<artifactId>guice-plexus-bridge</artifactId>
-				<version>0.1.0-SNAPSHOT</version>
+				<version>0.1.0-alpha-7</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit</groupId>
 				<artifactId>slf4j-plexus</artifactId>
-				<version>0.1.0-alpha-3</version>
+				<version>0.1.0-alpha-4</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-maven</artifactId>
-				<version>0.1.0-SNAPSHOT</version>
+				<version>0.1.0-alpha-12</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-testing</artifactId>
-				<version>0.1.0-alpha-7</version>
+				<version>0.1.0-alpha-8</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-utils</artifactId>
-				<version>0.1.0-SNAPSHOT</version>
+				<version>0.1.0-alpha-8</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -118,7 +118,7 @@
 					<plugin>
 						<groupId>org.sourcepit.tools</groupId>
 						<artifactId>maven-install-plugin</artifactId>
-						<version>0.1.0-alpha-4</version>
+						<version>0.1.0-alpha-5</version>
 						<executions>
 							<execution>
 								<id>pre-integration-test</id>
