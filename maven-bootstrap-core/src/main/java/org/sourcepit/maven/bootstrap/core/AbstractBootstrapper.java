@@ -73,6 +73,7 @@ import org.sourcepit.maven.bootstrap.internal.core.ExtensionDescriptorReader;
 import org.sourcepit.maven.bootstrap.internal.core.PluginConfigurationReader;
 import org.sourcepit.maven.bootstrap.internal.core.ReactorReader;
 import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
+import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant2;
 import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
 import com.google.inject.Injector;
@@ -113,6 +114,8 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    private final Map<MavenSession, MavenSession> actualToBootSession = new HashMap<MavenSession, MavenSession>();
    private final Map<MavenSession, MavenSession> bootToActualSession = new HashMap<MavenSession, MavenSession>();
+   private final Map<Object, Object> bootContext = new HashMap<Object, Object>();
+
 
    private final String extensionKey;
 
@@ -129,6 +132,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       imports.add("org.slf4j.impl.*");
 
       imports.add(ImportEnforcer.toImportPattern(BootstrapParticipant.class));
+      imports.add(ImportEnforcer.toImportPattern(BootstrapParticipant2.class));
 
       extensionRealmPrefixes.add("extension>" + extensionKey);
 
@@ -149,9 +153,9 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
 
       mapSessions(actualSession, bootSession);
-      
+
       logger.info("Executing bootstrapper " + extensionKey + "...");
-      
+
       plexusContainer.getContainerRealm().getWorld().addListener(importEnforcer);
 
       final MavenSession oldSession = legacySupport.getSession();
@@ -175,7 +179,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
          performBootSession(bootSession);
          adjustActualSession(bootSession, actualSession);
-         
+
          logger.info("");
          logger.info("------------------------------------------------------------------------");
          logger.info("Finished bootstrapper " + extensionKey);
@@ -244,11 +248,19 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       Thread.currentThread().setContextClassLoader(bootExtensionClassRealm);
       try
       {
-         final List<BootstrapParticipant> bootParticipants = discoverBootstrapParticipants(bootSession, bootProject,
+         final List<?> bootParticipants = discoverBootstrapParticipants(bootSession, bootProject,
             bootExtensionClassRealm);
-         for (BootstrapParticipant bootParticipant : bootParticipants)
+         for (Object bootParticipant : bootParticipants)
          {
-            bootParticipant.beforeBuild(bootSession, bootProject, bootToActualSession.get(bootSession));
+            if (bootParticipant instanceof BootstrapParticipant)
+            {
+               ((BootstrapParticipant) bootParticipant).beforeBuild(bootSession, bootProject,
+                  bootToActualSession.get(bootSession));
+            }
+            else
+            {
+               ((BootstrapParticipant2) bootParticipant).beforeBuild(bootSession, bootProject, bootContext);
+            }
          }
       }
       finally
@@ -370,11 +382,19 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       Thread.currentThread().setContextClassLoader(bootExtensionClassRealm);
       try
       {
-         final List<BootstrapParticipant> bootParticipants = discoverBootstrapParticipants(bootSession, bootProject,
+         final List<?> bootParticipants = discoverBootstrapParticipants(bootSession, bootProject,
             bootExtensionClassRealm);
-         for (BootstrapParticipant bootParticipant : bootParticipants)
+         for (Object bootParticipant : bootParticipants)
          {
-            bootParticipant.afterBuild(bootSession, bootProject, bootToActualSession.get(bootSession));
+            if (bootParticipant instanceof BootstrapParticipant)
+            {
+               ((BootstrapParticipant) bootParticipant).afterBuild(bootSession, bootProject,
+                  bootToActualSession.get(bootSession));
+            }
+            else
+            {
+               ((BootstrapParticipant2) bootParticipant).afterBuild(bootSession, bootProject, bootContext);
+            }
          }
       }
       finally
@@ -383,13 +403,12 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       }
    }
 
-   private List<BootstrapParticipant> discoverBootstrapParticipants(MavenSession bootSession, MavenProject bootProject,
+   private List<?> discoverBootstrapParticipants(MavenSession bootSession, MavenProject bootProject,
       ClassRealm bootExtensionClassRealm)
    {
       final String key = BootstrapParticipant.class.getName() + "@" + bootExtensionClassRealm.getId();
 
-      @SuppressWarnings("unchecked")
-      List<BootstrapParticipant> bootstrapParticipants = (List<BootstrapParticipant>) bootProject.getContextValue(key);
+      List<?> bootstrapParticipants = (List<?>) bootProject.getContextValue(key);
       if (bootstrapParticipants == null)
       {
          bootstrapParticipants = lookupBootstrapParticipants(bootSession, bootProject, bootExtensionClassRealm);
@@ -398,7 +417,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       return bootstrapParticipants;
    }
 
-   private List<BootstrapParticipant> lookupBootstrapParticipants(MavenSession bootSession, MavenProject bootProject,
+   private List<?> lookupBootstrapParticipants(MavenSession bootSession, MavenProject bootProject,
       ClassRealm bootExtensionClassRealm)
    {
       final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
@@ -415,12 +434,20 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          final Injector injector = guplex.createInjector(request);
 
          final BeanLocator locator = injector.getInstance(BeanLocator.class);
-         final Key<BootstrapParticipant> key = Key.get(BootstrapParticipant.class);
-         final List<BootstrapParticipant> result = new ArrayList<BootstrapParticipant>();
-         for (BeanEntry<Annotation, BootstrapParticipant> beanEntry : locator.locate(key))
+         final List<Object> result = new ArrayList<Object>();
+
+         for (BeanEntry<Annotation, BootstrapParticipant> beanEntry : locator.locate(Key
+            .get(BootstrapParticipant.class)))
          {
             result.add(beanEntry.getValue());
          }
+
+         for (BeanEntry<Annotation, BootstrapParticipant2> beanEntry : locator.locate(Key
+            .get(BootstrapParticipant2.class)))
+         {
+            result.add(beanEntry.getValue());
+         }
+
          return result;
       }
       finally
