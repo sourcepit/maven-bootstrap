@@ -55,7 +55,7 @@
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-maven</artifactId>
-				<version>0.1.0-alpha-12</version>
+				<version>0.1.0-alpha-13</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
@@ -65,7 +65,7 @@
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
 				<artifactId>common-utils</artifactId>
-				<version>0.1.0-alpha-8</version>
+				<version>0.1.0-alpha-9</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
