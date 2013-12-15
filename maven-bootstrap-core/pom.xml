@@ -3,7 +3,7 @@
 	<parent>
 		<groupId>org.sourcepit.tools</groupId>
 		<artifactId>maven-bootstrap</artifactId>
-		<version>0.1.0-SNAPSHOT</version>
+		<version>0.1.0-alpha-9</version>
 	</parent>
 	<artifactId>maven-bootstrap-core</artifactId>
 
