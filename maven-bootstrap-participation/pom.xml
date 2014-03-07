@@ -3,7 +3,7 @@
 	<parent>
 		<groupId>org.sourcepit.tools</groupId>
 		<artifactId>maven-bootstrap</artifactId>
-		<version>0.1.0-SNAPSHOT</version>
+		<version>0.10.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>maven-bootstrap-participation</artifactId>
 
@@ -12,10 +12,6 @@
 			<groupId>org.apache.maven</groupId>
 			<artifactId>maven-core</artifactId>
 			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.sourcepit</groupId>
-			<artifactId>guice-plexus-bridge</artifactId>
 		</dependency>
 	</dependencies>
 

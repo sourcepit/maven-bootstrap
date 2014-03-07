@@ -5,7 +5,6 @@
 package org.sourcepit.maven.bootstrap.core;
 
 import java.io.File;
-import java.lang.annotation.Annotation;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -53,21 +52,17 @@ import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.project.ProjectBuildingResult;
 import org.apache.maven.project.ProjectSorter;
 import org.apache.maven.repository.RepositorySystem;
-import org.codehaus.plexus.PlexusContainer;
+import org.codehaus.plexus.DefaultPlexusContainer;
 import org.codehaus.plexus.classworlds.ClassWorld;
 import org.codehaus.plexus.classworlds.ClassWorldListener;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
 import org.codehaus.plexus.classworlds.realm.DuplicateRealmException;
 import org.codehaus.plexus.component.annotations.Requirement;
-import org.codehaus.plexus.configuration.PlexusConfigurationException;
+import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.dag.CycleDetectedException;
-import org.sonatype.aether.util.DefaultRepositorySystemSession;
-import org.sonatype.aether.util.repository.ChainedWorkspaceReader;
-import org.sonatype.guice.bean.locators.BeanLocator;
-import org.sonatype.inject.BeanEntry;
-import org.sourcepit.guplex.Guplex;
-import org.sourcepit.guplex.InjectorRequest;
+import org.eclipse.aether.DefaultRepositorySystemSession;
+import org.eclipse.aether.util.repository.ChainedWorkspaceReader;
 import org.sourcepit.maven.bootstrap.internal.core.ExtensionDescriptor;
 import org.sourcepit.maven.bootstrap.internal.core.ExtensionDescriptorReader;
 import org.sourcepit.maven.bootstrap.internal.core.PluginConfigurationReader;
@@ -76,19 +71,13 @@ import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
 import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant2;
 import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
-import com.google.inject.Injector;
-import com.google.inject.Key;
-
 public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 {
    @Requirement
    private Logger logger;
 
    @Requirement
-   private PlexusContainer plexusContainer;
-
-   @Requirement
-   private Guplex guplex;
+   private DefaultPlexusContainer plexusContainer;
 
    @Requirement
    private LegacySupport legacySupport;
@@ -422,48 +411,53 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    {
       final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
       Thread.currentThread().setContextClassLoader(bootExtensionClassRealm);
+      
+      final ClassRealm oldRealm = plexusContainer.getLookupRealm();
       try
       {
-         InjectorRequest request = new InjectorRequest();
-         request.setUseIndex(true);
-         request.setInitEPackages(true);
-         request.getClassLoaders().add(bootExtensionClassRealm);
+         plexusContainer.setLookupRealm(bootExtensionClassRealm);
 
-         addCustomClassLoaders(bootSession, bootProject, bootExtensionClassRealm, request.getClassLoaders());
+         addCustomClassLoaders(bootSession, bootProject, bootExtensionClassRealm);
 
-         final Injector injector = guplex.createInjector(request);
-
-         final BeanLocator locator = injector.getInstance(BeanLocator.class);
          final List<Object> result = new ArrayList<Object>();
-
-         for (BeanEntry<Annotation, BootstrapParticipant> beanEntry : locator.locate(Key
-            .get(BootstrapParticipant.class)))
+         final List<BootstrapParticipant> p1;
+         try
          {
-            result.add(beanEntry.getValue());
+            p1 = plexusContainer.lookupList(BootstrapParticipant.class);
          }
-
-         for (BeanEntry<Annotation, BootstrapParticipant2> beanEntry : locator.locate(Key
-            .get(BootstrapParticipant2.class)))
+         catch (ComponentLookupException e)
          {
-            result.add(beanEntry.getValue());
+            throw new IllegalStateException(e);
          }
+         result.addAll(p1);
+
+         final List<BootstrapParticipant2> p2;
+         try
+         {
+            p2 = plexusContainer.lookupList(BootstrapParticipant2.class);
+         }
+         catch (ComponentLookupException e)
+         {
+            throw new IllegalStateException(e);
+         }
+         result.addAll(p2);
 
          return result;
       }
       finally
       {
+         plexusContainer.setLookupRealm(oldRealm);
          Thread.currentThread().setContextClassLoader(originalClassLoader);
       }
    }
 
-   protected void addCustomClassLoaders(MavenSession bootSession, MavenProject bootProject, ClassRealm extensionRealm,
-      Set<ClassLoader> classLoaders)
+   protected void addCustomClassLoaders(MavenSession bootSession, MavenProject bootProject, ClassRealm extensionRealm)
    {
-      addExtensionExtensionsClassLoaders(bootSession, bootProject, extensionRealm, classLoaders);
+      addExtensionExtensionsClassLoaders(bootSession, bootProject, extensionRealm);
    }
 
    protected final void addExtensionExtensionsClassLoaders(MavenSession bootSession, MavenProject bootProject,
-      ClassRealm extensionRealm, Set<ClassLoader> classLoaders)
+      ClassRealm extensionRealm)
    {
       if (isAllowExtensionExtensions(bootSession, bootProject))
       {
@@ -474,15 +468,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
             {
                final ClassRealm newRealm = createExtensionExtensionRealm(bootSession, bootProject, extensionRealm,
                   extension);
-               try
-               {
-                  plexusContainer.discoverComponents(newRealm);
-               }
-               catch (PlexusConfigurationException e)
-               {
-                  throw new IllegalStateException(e);
-               }
-               classLoaders.add(newRealm);
+               plexusContainer.discoverComponents(newRealm);
             }
          }
       }
