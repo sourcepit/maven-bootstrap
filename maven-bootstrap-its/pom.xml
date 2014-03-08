@@ -23,11 +23,6 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>org.codehaus.plexus</groupId>
-			<artifactId>plexus-classworlds</artifactId>
-			<scope>provided</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.apache.maven</groupId>
 			<artifactId>maven-core</artifactId>
 			<scope>provided</scope>
@@ -59,17 +54,13 @@
 			<artifactId>common-testing</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 	<build>
-		<!-- <resources> -->
-		<!-- <resource> -->
-		<!-- <directory>src/java/resources</directory> -->
-		<!-- </resource> -->
-		<!-- <resource> -->
-		<!-- <directory>src/ext/java</directory> -->
-		<!-- <targetPath>${project.directory}/extension-classes</targetPath> -->
-		<!-- </resource> -->
-		<!-- </resources> -->
 		<testResources>
 			<testResource>
 				<directory>src/test/resources</directory>
