@@ -8,20 +8,21 @@
 
 package org.sourcepit.maven.exec.internal.intercept;
 
+import javax.inject.Inject;
+import javax.inject.Named;
+
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenSession;
-import org.codehaus.plexus.component.annotations.Component;
-import org.codehaus.plexus.component.annotations.Requirement;
 
 
 /**
  * @author Bernd
  */
-@Component(role = AbstractMavenLifecycleParticipant.class)
+@Named
 public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
 {
-   @Requirement
+   @Inject
    private MavenExecutionInterceptor executionInterceptor;
 
    @Override

@@ -6,20 +6,23 @@ package org.sourcepit.maven.exec.internal.intercept;
 
 import java.util.List;
 
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
+
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenExecutionRequest;
 import org.apache.maven.execution.MavenExecutionResult;
 import org.apache.maven.execution.MavenSession;
-import org.codehaus.plexus.component.annotations.Component;
-import org.codehaus.plexus.component.annotations.Requirement;
 import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
-@Component(role = MavenExecutionInterceptor.class)
+@Named
+@Singleton
 public class MavenExecutionInterceptor
 {
    private final ThreadLocal<MavenSession> sessionThreadLocal = new ThreadLocal<MavenSession>();
 
-   @Requirement
+   @Inject
    private List<MavenExecutionParticipant> executionParticipants;
 
    public MavenExecutionInterceptor()

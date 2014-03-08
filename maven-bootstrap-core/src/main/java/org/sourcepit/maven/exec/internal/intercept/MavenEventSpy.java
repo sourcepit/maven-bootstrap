@@ -8,21 +8,22 @@
 
 package org.sourcepit.maven.exec.internal.intercept;
 
+import javax.inject.Inject;
+import javax.inject.Named;
+
 import org.apache.maven.eventspy.AbstractEventSpy;
 import org.apache.maven.eventspy.EventSpy;
 import org.apache.maven.execution.ExecutionEvent;
 import org.apache.maven.execution.MavenExecutionResult;
-import org.codehaus.plexus.component.annotations.Component;
-import org.codehaus.plexus.component.annotations.Requirement;
 
 
 /**
  * @author Bernd
  */
-@Component(role = EventSpy.class)
-public class MavenEventSpy extends AbstractEventSpy
+@Named
+public class MavenEventSpy extends AbstractEventSpy implements EventSpy
 {
-   @Requirement
+   @Inject
    private MavenExecutionInterceptor executionInterceptor;
 
    @Override

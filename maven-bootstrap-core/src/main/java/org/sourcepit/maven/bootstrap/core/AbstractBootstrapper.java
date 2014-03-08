@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import javax.inject.Inject;
+
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.ArtifactUtils;
@@ -57,7 +59,6 @@ import org.codehaus.plexus.classworlds.ClassWorld;
 import org.codehaus.plexus.classworlds.ClassWorldListener;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
 import org.codehaus.plexus.classworlds.realm.DuplicateRealmException;
-import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.dag.CycleDetectedException;
@@ -73,28 +74,28 @@ import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
 public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 {
-   @Requirement
+   @Inject
    private Logger logger;
 
-   @Requirement
+   @Inject
    private DefaultPlexusContainer plexusContainer;
 
-   @Requirement
+   @Inject
    private LegacySupport legacySupport;
 
-   @Requirement
+   @Inject
    private ProjectBuilder projectBuilder;
 
-   @Requirement
+   @Inject
    private RepositorySystem repositorySystem;
 
-   @Requirement
+   @Inject
    private ResolutionErrorHandler resolutionErrorHandler;
 
-   @Requirement
+   @Inject
    private ClassRealmManager classRealmManager;
 
-   @Requirement
+   @Inject
    private MojoExecutor mojoExecutor;
 
    private final ImportEnforcer importEnforcer;

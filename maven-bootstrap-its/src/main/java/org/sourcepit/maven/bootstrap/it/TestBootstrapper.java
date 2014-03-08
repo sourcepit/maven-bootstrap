@@ -12,10 +12,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
+import javax.inject.Named;
+
 import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.component.annotations.Component;
 import org.sourcepit.common.utils.file.FileUtils;
 import org.sourcepit.common.utils.file.FileVisitor;
 import org.sourcepit.common.utils.path.PathUtils;
@@ -25,8 +26,8 @@ import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 /**
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>
  */
-@Component(role = MavenExecutionParticipant.class, hint = "TestMavenBootstrapper")
-public class TestBootstrapper extends AbstractBootstrapper
+@Named("TestMavenBootstrapper")
+public class TestBootstrapper extends AbstractBootstrapper implements MavenExecutionParticipant
 {
    private Report report = new Report(new File(getClass().getName() + ".txt").getAbsoluteFile());
 
