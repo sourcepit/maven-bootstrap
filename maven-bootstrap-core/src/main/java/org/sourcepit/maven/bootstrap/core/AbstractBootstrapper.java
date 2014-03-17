@@ -59,6 +59,7 @@ import org.codehaus.plexus.classworlds.ClassWorld;
 import org.codehaus.plexus.classworlds.ClassWorldListener;
 import org.codehaus.plexus.classworlds.realm.ClassRealm;
 import org.codehaus.plexus.classworlds.realm.DuplicateRealmException;
+import org.codehaus.plexus.classworlds.realm.NoSuchRealmException;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.dag.CycleDetectedException;
@@ -412,7 +413,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
    {
       final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
       Thread.currentThread().setContextClassLoader(bootExtensionClassRealm);
-      
+
       final ClassRealm oldRealm = plexusContainer.getLookupRealm();
       try
       {
@@ -467,9 +468,9 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
          {
             for (Dependency extension : extensions)
             {
-               final ClassRealm newRealm = createExtensionExtensionRealm(bootSession, bootProject, extensionRealm,
+               final ClassRealm extRealm = getExtensionExtensionRealm(bootSession, bootProject, extensionRealm,
                   extension);
-               plexusContainer.discoverComponents(newRealm);
+               plexusContainer.discoverComponents(extRealm);
             }
          }
       }
@@ -477,13 +478,24 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    protected abstract boolean isAllowExtensionExtensions(MavenSession bootSession, MavenProject bootProject);
 
-   private ClassRealm createExtensionExtensionRealm(MavenSession bootSession, MavenProject bootProject,
+   private ClassRealm getExtensionExtensionRealm(MavenSession bootSession, MavenProject bootProject,
       ClassRealm extensionRealm, Dependency extension)
    {
-      final URL[] urls = resolveURLs(bootSession, bootProject, extension);
-
       final String realmId = extensionRealm.getId() + "@" + extension.toString();
+
+      // don't create unnecessary class loaders (to prevent issues with EMF package registry with relates on current ctx
+      // class loader...)
+      try
+      {
+         return extensionRealm.getWorld().getRealm(realmId);
+      }
+      catch (NoSuchRealmException e)
+      {
+      }
+
       final ClassRealm newRealm = newRealm(extensionRealm.getWorld(), realmId);
+
+      final URL[] urls = resolveURLs(bootSession, bootProject, extension);
       for (int j = 0; j < urls.length; j++)
       {
          newRealm.addURL(urls[j]);
