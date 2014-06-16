@@ -603,7 +603,11 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
       // project specific
       request.setRemoteRepositories(project.getRemoteArtifactRepositories());
-      request.setManagedVersionMap(project.getManagedVersionMap());
+
+      // important to NOT apply dep management here, leeds to unexpected side effects, e.g. when osgifier is managed in
+      // project which is build. So separate deps from project which is build and build system is a good thing.
+      // Note: we must explicitly set an empty map to prevent managed version resolution via maven session
+      request.setManagedVersionMap(new HashMap<String, Artifact>());
 
       request.setArtifact(repositorySystem.createDependencyArtifact(dependency));
 
