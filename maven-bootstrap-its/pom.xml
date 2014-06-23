@@ -34,7 +34,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.sourcepit.common</groupId>
-			<artifactId>common-utils</artifactId>
+			<artifactId>org.sourcepit.common.utils</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.sourcepit.tools</groupId>
@@ -45,10 +45,10 @@
 			<artifactId>maven-bootstrap-core</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.sourcepit.common</groupId>
-			<artifactId>common-maven</artifactId>
-			<scope>test</scope>
-		</dependency>
+            <groupId>org.sourcepit.common.maven</groupId>
+            <artifactId>common-maven-core</artifactId>
+            <scope>test</scope>
+        </dependency>
 		<dependency>
 			<groupId>org.sourcepit.common</groupId>
 			<artifactId>common-testing</artifactId>

@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>org.sourcepit</groupId>
 		<artifactId>srcpit-parent</artifactId>
-		<version>11</version>
+		<version>15</version>
 	</parent>
 
 	<groupId>org.sourcepit.tools</groupId>
@@ -43,9 +43,9 @@
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>org.sourcepit.common</groupId>
-				<artifactId>common-maven</artifactId>
-				<version>0.16.0-SNAPSHOT</version>
+				<groupId>org.sourcepit.common.maven</groupId>
+				<artifactId>common-maven-core</artifactId>
+				<version>0.20.0</version>
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
@@ -54,8 +54,8 @@
 			</dependency>
 			<dependency>
 				<groupId>org.sourcepit.common</groupId>
-				<artifactId>common-utils</artifactId>
-				<version>0.10.0</version>
+				<artifactId>org.sourcepit.common.utils</artifactId>
+				<version>0.13.0</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
