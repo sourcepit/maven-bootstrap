@@ -25,12 +25,12 @@
 
 	<groupId>org.sourcepit.tools</groupId>
 	<artifactId>maven-bootstrap</artifactId>
-	<version>0.12.0</version>
+	<version>0.13.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<scm>
 		<connection>scm:git:git@github.com:sourcepit/maven-bootstrap.git</connection>
-		<tag>maven-bootstrap-0.12.0</tag>
+		<tag>HEAD</tag>
 	</scm>
 
 	<modules>
