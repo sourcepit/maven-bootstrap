@@ -44,6 +44,8 @@ import org.apache.maven.artifact.resolver.ArtifactResolutionException;
 import org.apache.maven.artifact.resolver.ArtifactResolutionRequest;
 import org.apache.maven.artifact.resolver.ArtifactResolutionResult;
 import org.apache.maven.artifact.resolver.ResolutionErrorHandler;
+import org.apache.maven.artifact.resolver.filter.AndArtifactFilter;
+import org.apache.maven.artifact.resolver.filter.ExclusionSetFilter;
 import org.apache.maven.artifact.resolver.filter.ScopeArtifactFilter;
 import org.apache.maven.classrealm.ClassRealmManager;
 import org.apache.maven.execution.DefaultMavenExecutionRequest;
@@ -111,6 +113,9 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    @Inject
    private MojoExecutor mojoExecutor;
+   
+   @Inject
+   private ArtifactFilterManager artifactFilterManager;
 
    private final ImportEnforcer importEnforcer;
 
@@ -607,10 +612,13 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       final ArtifactResolutionRequest request = new ArtifactResolutionRequest();
       request.setResolveRoot(true);
       request.setResolveTransitively(true);
-      request
-         .setResolutionFilter(new ScopeArtifactFilter(org.apache.maven.artifact.Artifact.SCOPE_RUNTIME_PLUS_SYSTEM));
-      request
-         .setCollectionFilter(new ScopeArtifactFilter(org.apache.maven.artifact.Artifact.SCOPE_RUNTIME_PLUS_SYSTEM));
+
+      final AndArtifactFilter artifactFilter = new AndArtifactFilter();
+      artifactFilter.add(new ScopeArtifactFilter(org.apache.maven.artifact.Artifact.SCOPE_RUNTIME_PLUS_SYSTEM));
+      artifactFilter.add(new ExclusionSetFilter(artifactFilterManager.getCoreArtifactExcludes()));
+
+      request.setResolutionFilter(artifactFilter);
+      request.setCollectionFilter(artifactFilter);
 
       final MavenExecutionRequest executionRequest = session.getRequest();
       request.setForceUpdate(executionRequest.isUpdateSnapshots());
