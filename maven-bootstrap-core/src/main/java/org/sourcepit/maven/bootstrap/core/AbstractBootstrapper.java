@@ -35,6 +35,7 @@ import java.util.Set;
 
 import javax.inject.Inject;
 
+import org.apache.maven.ArtifactFilterManager;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.ArtifactUtils;
@@ -535,6 +536,9 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
                newRealm.importFrom(extensionRealm, exportedPackage);
             }
             newRealm.importFrom(classRealmManager.getMavenApiRealm(), "");
+            // org.apache.maven.bridge currently not exposed via Maven Api (3.2.3) but required by API components, e.g
+            // org.apache.maven.project.DefaultProjectBuilder.
+            newRealm.importFrom(classRealmManager.getCoreRealm(), "org.apache.maven.bridge");
          }
       }
 
