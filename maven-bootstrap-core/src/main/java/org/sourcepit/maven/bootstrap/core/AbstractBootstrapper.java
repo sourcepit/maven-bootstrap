@@ -17,6 +17,7 @@
 package org.sourcepit.maven.bootstrap.core;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -61,7 +62,6 @@ import org.apache.maven.plugin.LegacySupport;
 import org.apache.maven.plugin.MojoExecution;
 import org.apache.maven.plugin.descriptor.MojoDescriptor;
 import org.apache.maven.project.DefaultProjectBuildingRequest;
-import org.apache.maven.project.DuplicateProjectException;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.project.ProjectBuilder;
 import org.apache.maven.project.ProjectBuildingException;
@@ -77,7 +77,6 @@ import org.codehaus.plexus.classworlds.realm.DuplicateRealmException;
 import org.codehaus.plexus.classworlds.realm.NoSuchRealmException;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
-import org.codehaus.plexus.util.dag.CycleDetectedException;
 import org.eclipse.aether.DefaultRepositorySystemSession;
 import org.eclipse.aether.util.repository.ChainedWorkspaceReader;
 import org.sourcepit.maven.bootstrap.internal.core.ExtensionDescriptor;
@@ -113,7 +112,7 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
 
    @Inject
    private MojoExecutor mojoExecutor;
-   
+
    @Inject
    private ArtifactFilterManager artifactFilterManager;
 
@@ -711,15 +710,20 @@ public abstract class AbstractBootstrapper implements MavenExecutionParticipant
       final ProjectSorter projectSorter;
       try
       {
-         projectSorter = new ProjectSorter(projects);
+         // HACK: Constructor arg changed with Maven 3.2 from List to Collection which made it binary incompatible
+         projectSorter = (ProjectSorter) ProjectSorter.class.getConstructors()[0].newInstance(projects);
       }
-      catch (CycleDetectedException e)
+      catch (InstantiationException e)
       {
          throw new IllegalStateException(e);
       }
-      catch (DuplicateProjectException e)
+      catch (IllegalAccessException e)
       {
          throw new IllegalStateException(e);
+      }
+      catch (InvocationTargetException e)
+      {
+         throw new IllegalStateException(e.getTargetException());
       }
 
       return projectSorter.getSortedProjects();
