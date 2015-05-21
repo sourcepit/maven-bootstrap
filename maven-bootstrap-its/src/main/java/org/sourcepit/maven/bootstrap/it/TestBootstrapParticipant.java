@@ -31,15 +31,13 @@ import org.sourcepit.maven.bootstrap.participation.BootstrapParticipant;
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>
  */
 @Named
-public class TestBootstrapParticipant implements BootstrapParticipant
-{
+public class TestBootstrapParticipant implements BootstrapParticipant {
    private Report report = new Report(new File(getClass().getName() + ".txt").getAbsoluteFile());
 
    @Inject
    private List<ExtensionExtension> extensionExtensions;
 
-   public void beforeBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession)
-   {
+   public void beforeBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession) {
       final List<String> values = new ArrayList<String>();
       values.add("beforeBuild");
       values.add(bootProject.getGroupId());
@@ -47,14 +45,12 @@ public class TestBootstrapParticipant implements BootstrapParticipant
 
       report.println(values);
 
-      for (ExtensionExtension ext : extensionExtensions)
-      {
+      for (ExtensionExtension ext : extensionExtensions) {
          report.println(ext.getClass().getName());
       }
    }
 
-   public void afterBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession)
-   {
+   public void afterBuild(MavenSession bootSession, MavenProject bootProject, MavenSession actualSession) {
       final List<String> values = new ArrayList<String>();
       values.add("afterBuild");
       values.add(bootProject.getGroupId());

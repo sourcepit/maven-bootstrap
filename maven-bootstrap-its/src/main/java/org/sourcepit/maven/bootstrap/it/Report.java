@@ -30,105 +30,83 @@ import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 
-public class Report
-{
+public class Report {
    private final File file;
 
-   public Report(File file)
-   {
+   public Report(File file) {
       this.file = file;
    }
 
-   public List<String> readLines()
-   {
+   public List<String> readLines() {
       final List<String> lines = new ArrayList<String>();
 
       final BufferedReader reader = newReader();
-      try
-      {
+      try {
          String line = reader.readLine();
-         while (line != null)
-         {
+         while (line != null) {
             lines.add(line);
             line = reader.readLine();
          }
 
       }
-      catch (IOException e)
-      {
+      catch (IOException e) {
          throw new IllegalStateException(e);
       }
-      finally
-      {
+      finally {
          IOUtils.closeQuietly(reader);
       }
 
       return lines;
    }
 
-   public void println(Iterable<?> values)
-   {
+   public void println(Iterable<?> values) {
       final StringBuilder sb = new StringBuilder();
-      for (Object value : values)
-      {
+      for (Object value : values) {
          sb.append(value.toString());
          sb.append(',');
       }
-      if (sb.length() > 0)
-      {
+      if (sb.length() > 0) {
          sb.deleteCharAt(sb.length() - 1);
       }
       println(sb);
    }
 
-   public void println(Object value)
-   {
+   public void println(Object value) {
       final Writer writer = newWriter();
-      try
-      {
+      try {
          writer.write(value.toString());
          writer.write("\n");
       }
-      catch (IOException e)
-      {
+      catch (IOException e) {
          throw new IllegalStateException(e);
       }
-      finally
-      {
+      finally {
          IOUtils.closeQuietly(writer);
       }
    }
 
-   private BufferedReader newReader()
-   {
-      try
-      {
-         if (!file.exists())
-         {
+   private BufferedReader newReader() {
+      try {
+         if (!file.exists()) {
             file.getParentFile().mkdirs();
             file.createNewFile();
          }
          return new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
       }
-      catch (IOException e)
-      {
+      catch (IOException e) {
          throw new IllegalStateException(e);
       }
    }
 
-   private Writer newWriter()
-   {
-      try
-      {
-         if (!file.exists())
-         {
+   private Writer newWriter() {
+      try {
+         if (!file.exists()) {
             file.getParentFile().mkdirs();
             file.createNewFile();
          }
          return new OutputStreamWriter(new BufferedOutputStream(new FileOutputStream(file, true)), "UTF-8");
       }
-      catch (IOException e)
-      {
+      catch (IOException e) {
          throw new IllegalStateException(e);
       }
    }

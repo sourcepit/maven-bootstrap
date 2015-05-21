@@ -24,27 +24,20 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
-public final class PluginConfigurationReader
-{
-   private PluginConfigurationReader()
-   {
+public final class PluginConfigurationReader {
+   private PluginConfigurationReader() {
       super();
    }
 
-   public static List<Dependency> readExtensions(MavenProject bootProject, String pluginKey)
-   {
+   public static List<Dependency> readExtensions(MavenProject bootProject, String pluginKey) {
       final List<Dependency> result = new ArrayList<Dependency>();
       final Plugin plugin = bootProject.getPlugin(pluginKey);
-      if (plugin != null)
-      {
+      if (plugin != null) {
          final Xpp3Dom configuration = (Xpp3Dom) plugin.getConfiguration();
-         if (configuration != null)
-         {
+         if (configuration != null) {
             final Xpp3Dom extensions = configuration.getChild("extensions");
-            if (extensions != null)
-            {
-               for (Xpp3Dom extension : extensions.getChildren("extension"))
-               {
+            if (extensions != null) {
+               for (Xpp3Dom extension : extensions.getChildren("extension")) {
                   result.add(newDependency(extension));
                }
             }
@@ -53,16 +46,14 @@ public final class PluginConfigurationReader
       return result;
    }
 
-   private static Dependency newDependency(Xpp3Dom dependency)
-   {
+   private static Dependency newDependency(Xpp3Dom dependency) {
       final Dependency result = new Dependency();
       result.setGroupId(extractNonEmptyValue(dependency.getChild("groupId")));
       result.setArtifactId(extractNonEmptyValue(dependency.getChild("artifactId")));
       result.setVersion(extractNonEmptyValue(dependency.getChild("version")));
       result.setClassifier(extractNonEmptyValue(dependency.getChild("classifier")));
       final String type = extractNonEmptyValue(dependency.getChild("type"));
-      if (type != null)
-      {
+      if (type != null) {
          result.setType(type);
       }
       result.setSystemPath(extractNonEmptyValue(dependency.getChild("systemPath")));
@@ -71,14 +62,11 @@ public final class PluginConfigurationReader
       return result;
    }
 
-   private static String extractNonEmptyValue(Xpp3Dom node)
-   {
+   private static String extractNonEmptyValue(Xpp3Dom node) {
       String value = node == null ? null : node.getValue();
-      if (value != null)
-      {
+      if (value != null) {
          value.trim();
-         if (value.length() == 0)
-         {
+         if (value.length() == 0) {
             value = null;
          }
       }

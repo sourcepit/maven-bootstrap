@@ -30,49 +30,40 @@ import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
 
 @Named
 @Singleton
-public class MavenExecutionInterceptor
-{
+public class MavenExecutionInterceptor {
    private final ThreadLocal<MavenSession> sessionThreadLocal = new ThreadLocal<MavenSession>();
 
    @Inject
    private List<MavenExecutionParticipant> executionParticipants;
 
-   public MavenExecutionInterceptor()
-   {
+   public MavenExecutionInterceptor() {
       super();
    }
 
-   public void onAfterSessionStart(MavenSession session) throws MavenExecutionException
-   {
+   public void onAfterSessionStart(MavenSession session) throws MavenExecutionException {
       sessionThreadLocal.set(session);
       final MavenExecutionRequest executionRequest = session.getRequest();
       fireExecutionStarted(session, executionRequest);
    }
 
-   public void onSessionEnded(MavenSession mavenSession)
-   {
+   public void onSessionEnded(MavenSession mavenSession) {
       final MavenSession session = getAndForgetCurrentSession();
-      if (session != null)
-      {
+      if (session != null) {
          fireExecutionEnded(session, session.getResult());
       }
    }
 
-   public void onMavenExecutionResult(MavenExecutionResult executionResult)
-   {
+   public void onMavenExecutionResult(MavenExecutionResult executionResult) {
       final MavenSession session = getAndForgetCurrentSession();
-      if (session != null)
-      {
+      if (session != null) {
          fireExecutionEnded(session, executionResult);
       }
    }
 
-   private MavenSession getAndForgetCurrentSession()
-   {
+   private MavenSession getAndForgetCurrentSession() {
       // get
       final MavenSession session = sessionThreadLocal.get();
-      if (session != null)
-      {
+      if (session != null) {
          // forget
          sessionThreadLocal.remove();
       }
@@ -80,18 +71,14 @@ public class MavenExecutionInterceptor
    }
 
    private void fireExecutionStarted(MavenSession session, final MavenExecutionRequest executionRequest)
-      throws MavenExecutionException
-   {
-      for (MavenExecutionParticipant listener : executionParticipants)
-      {
+      throws MavenExecutionException {
+      for (MavenExecutionParticipant listener : executionParticipants) {
          listener.executionStarted(session, executionRequest);
       }
    }
 
-   private void fireExecutionEnded(final MavenSession session, MavenExecutionResult executionResult)
-   {
-      for (MavenExecutionParticipant listener : executionParticipants)
-      {
+   private void fireExecutionEnded(final MavenSession session, MavenExecutionResult executionResult) {
+      for (MavenExecutionParticipant listener : executionParticipants) {
          listener.executionEnded(session, executionResult);
       }
    }

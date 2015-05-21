@@ -32,23 +32,19 @@ import org.sourcepit.common.testing.Environment;
 /**
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>
  */
-public class BuildBootstrapperIT extends ExternalMavenTest
-{
+public class BuildBootstrapperIT extends ExternalMavenTest {
    @Override
-   protected boolean isDebug()
-   {
+   protected boolean isDebug() {
       return false;
    }
 
    @Override
-   protected Environment newEnvironment()
-   {
+   protected Environment newEnvironment() {
       return Environment.get("env-it.properties");
    }
 
    @Test
-   public void testSimpleProject() throws Exception
-   {
+   public void testSimpleProject() throws Exception {
       final File projectDir = getResource("simple-project");
 
       final int error = build(projectDir, "-e", "-B", "compile");
@@ -73,8 +69,7 @@ public class BuildBootstrapperIT extends ExternalMavenTest
    }
 
    @Test
-   public void testReactorProject() throws Exception
-   {
+   public void testReactorProject() throws Exception {
       final File projectDir = getResource("reactor-project");
 
       final int error = build(projectDir, "-e", "-B", "compile");
@@ -109,8 +104,7 @@ public class BuildBootstrapperIT extends ExternalMavenTest
    }
 
    @Test
-   public void testExtensionExtension() throws Exception
-   {
+   public void testExtensionExtension() throws Exception {
       final File projectDir = getResource("extension-extensions");
 
       final int error = build(projectDir, "-e", "-B", "compile", "-DallowExtensions=true");

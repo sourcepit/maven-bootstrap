@@ -19,19 +19,16 @@ package org.sourcepit.maven.bootstrap.internal.core;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExtensionDescriptor
-{
+public class ExtensionDescriptor {
    private final List<String> exportedPackages = new ArrayList<String>();
 
    private final List<String> exportedArtifacts = new ArrayList<String>();
 
-   public List<String> getExportedArtifacts()
-   {
+   public List<String> getExportedArtifacts() {
       return exportedArtifacts;
    }
 
-   public List<String> getExportedPackages()
-   {
+   public List<String> getExportedPackages() {
       return exportedPackages;
    }
 }

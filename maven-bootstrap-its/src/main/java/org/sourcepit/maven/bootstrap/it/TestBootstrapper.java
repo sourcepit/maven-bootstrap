@@ -37,50 +37,40 @@ import org.sourcepit.maven.exec.intercept.MavenExecutionParticipant;
  * @author Bernd Vogt <bernd.vogt@sourcepit.org>
  */
 @Named("TestMavenBootstrapper")
-public class TestBootstrapper extends AbstractBootstrapper implements MavenExecutionParticipant
-{
+public class TestBootstrapper extends AbstractBootstrapper implements MavenExecutionParticipant {
    private Report report = new Report(new File(getClass().getName() + ".txt").getAbsoluteFile());
 
-   public TestBootstrapper()
-   {
+   public TestBootstrapper() {
       super("org.sourcepit.tools", "maven-bootstrap-its");
    }
 
    @Override
-   protected String getDependencyResolutionRequired()
-   {
+   protected String getDependencyResolutionRequired() {
       return null;
    }
 
    @Override
-   protected void adjustActualSession(MavenSession bootSession, MavenSession actualSession)
-   {
+   protected void adjustActualSession(MavenSession bootSession, MavenSession actualSession) {
       report.println("adjustActualSession");
    }
 
    @Override
-   protected List<ArtifactRepository> filterArtifactRepositories(List<ArtifactRepository> remoteRepositories)
-   {
+   protected List<ArtifactRepository> filterArtifactRepositories(List<ArtifactRepository> remoteRepositories) {
       return null;
    }
 
    @Override
    protected void discoverProjectDescriptors(MavenSession session, final Collection<File> descriptors,
-      Collection<File> skippedDescriptors)
-   {
+      Collection<File> skippedDescriptors) {
       report.println("discoverProjectDescriptors");
 
       final File baseDir = new File(session.getRequest().getBaseDirectory());
-      FileUtils.accept(baseDir, new FileVisitor()
-      {
-         public boolean visit(File file)
-         {
+      FileUtils.accept(baseDir, new FileVisitor() {
+         public boolean visit(File file) {
             final String fileName = file.getName();
-            if (file.isDirectory() && !"target".equals(fileName))
-            {
+            if (file.isDirectory() && !"target".equals(fileName)) {
                final File pomFile = new File(file, "pom.xml");
-               if (pomFile.exists())
-               {
+               if (pomFile.exists()) {
                   descriptors.add(pomFile);
                   return true;
                }
@@ -90,16 +80,14 @@ public class TestBootstrapper extends AbstractBootstrapper implements MavenExecu
       });
 
       final List<String> paths = new ArrayList<String>();
-      for (File file : descriptors)
-      {
+      for (File file : descriptors) {
          paths.add(PathUtils.getRelativePath(file.getAbsoluteFile(), baseDir, "/"));
       }
       report.println(paths);
    }
 
    @Override
-   protected boolean isAllowExtensionExtensions(MavenSession bootSession, MavenProject bootProject)
-   {
+   protected boolean isAllowExtensionExtensions(MavenSession bootSession, MavenProject bootProject) {
       final Properties properties = new Properties();
       properties.putAll(bootProject.getProperties());
       properties.putAll(bootSession.getSystemProperties()); // session wins

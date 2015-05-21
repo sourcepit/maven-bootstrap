@@ -15,6 +15,5 @@
  */
 
 package org.sourcepit.maven.bootstrap.it;
-public interface ExtensionExtension
-{
+public interface ExtensionExtension {
 }

@@ -37,42 +37,33 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-public class ExtensionDescriptorReader
-{
-   public static ExtensionDescriptor read(URL extensionArtifact)
-   {
+public class ExtensionDescriptorReader {
+   public static ExtensionDescriptor read(URL extensionArtifact) {
       final Document doc = readDocument(urlIn(extensionArtifact));
       return doc == null ? null : read(doc);
    }
 
-   public static ExtensionDescriptor read(File extensionArtifact)
-   {
+   public static ExtensionDescriptor read(File extensionArtifact) {
       final Document doc = readDocument(fileIn(extensionArtifact));
       return doc == null ? null : read(doc);
    }
 
-   private static Document readDocument(IOHandle<? extends InputStream> resource)
-   {
+   private static Document readDocument(IOHandle<? extends InputStream> resource) {
       final ZipInputStreamHandle zipIn = zipIn(buffIn(resource), "META-INF/maven/extension.xml");
 
       final Document[] extensionDoc = new Document[1];
 
-      IOOperation<InputStream> ioop = new IOOperation<InputStream>(zipIn)
-      {
+      IOOperation<InputStream> ioop = new IOOperation<InputStream>(zipIn) {
          @Override
-         protected void run(InputStream openResource) throws IOException
-         {
+         protected void run(InputStream openResource) throws IOException {
             extensionDoc[0] = readXml(openResource);
          }
       };
-      try
-      {
+      try {
          ioop.run();
       }
-      catch (PipedIOException e)
-      {
-         if (e.adapt(FileNotFoundException.class) == null)
-         {
+      catch (PipedIOException e) {
+         if (e.adapt(FileNotFoundException.class) == null) {
             throw e;
          }
       }
@@ -80,19 +71,16 @@ public class ExtensionDescriptorReader
       return extensionDoc[0];
    }
 
-   private static ExtensionDescriptor read(Document extensionDoc)
-   {
+   private static ExtensionDescriptor read(Document extensionDoc) {
       final ExtensionDescriptor extensionDescriptor = new ExtensionDescriptor();
 
-      for (Node node : queryNodes(extensionDoc, "/extension/exportedPackages/exportedPackage"))
-      {
+      for (Node node : queryNodes(extensionDoc, "/extension/exportedPackages/exportedPackage")) {
          final Element elem = (Element) node;
          final String value = elem.getTextContent().trim();
          extensionDescriptor.getExportedPackages().add(value);
       }
 
-      for (Node node : queryNodes(extensionDoc, "/extension/exportedArtifacts/exportedArtifact"))
-      {
+      for (Node node : queryNodes(extensionDoc, "/extension/exportedArtifacts/exportedArtifact")) {
          final Element elem = (Element) node;
          final String value = elem.getTextContent().trim();
          extensionDescriptor.getExportedArtifacts().add(value);

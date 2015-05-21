@@ -38,28 +38,24 @@ import org.sourcepit.common.utils.io.IOOperation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-public class ExtensionDescriptorReaderTest
-{
+public class ExtensionDescriptorReaderTest {
    private final Environment env = Environment.get("env-test.properties");
 
    @Rule
    public Workspace ws = newWorkspace();
 
-   protected Workspace newWorkspace()
-   {
+   protected Workspace newWorkspace() {
       return new Workspace(new File(env.getBuildDir(), "test-ws"), false);
    }
 
    @Test
-   public void testNotExists()
-   {
+   public void testNotExists() {
       final ExtensionDescriptor actual = ExtensionDescriptorReader.read(createExtensionArtifact(null));
       assertNull(actual);
    }
 
    @Test
-   public void testEmpty()
-   {
+   public void testEmpty() {
       final ExtensionDescriptor expected = new ExtensionDescriptor();
 
       final ExtensionDescriptor actual = ExtensionDescriptorReader.read(createExtensionArtifact(expected));
@@ -69,8 +65,7 @@ public class ExtensionDescriptorReaderTest
    }
 
    @Test
-   public void testWithEntries()
-   {
+   public void testWithEntries() {
       final ExtensionDescriptor expected = new ExtensionDescriptor();
       expected.getExportedPackages().add("org.sourcepit");
       expected.getExportedPackages().add("foo.bar");
@@ -83,28 +78,22 @@ public class ExtensionDescriptorReaderTest
       assertEquals(expected.getExportedArtifacts(), actual.getExportedArtifacts());
    }
 
-   private File createExtensionArtifact(ExtensionDescriptor expected)
-   {
+   private File createExtensionArtifact(ExtensionDescriptor expected) {
       final File extensionArtifact = new File(ws.getRoot(), "extensionArtifact.zip");
       writeExtensionArtifact(extensionArtifact, expected);
       return extensionArtifact;
    }
 
-   private static void writeExtensionArtifact(File extensionArtifact, final ExtensionDescriptor extensionDescriptor)
-   {
-      new IOOperation<ZipOutputStream>(zipOut(buffOut(fileOut(extensionArtifact))))
-      {
+   private static void writeExtensionArtifact(File extensionArtifact, final ExtensionDescriptor extensionDescriptor) {
+      new IOOperation<ZipOutputStream>(zipOut(buffOut(fileOut(extensionArtifact)))) {
          @Override
-         protected void run(ZipOutputStream zipOut) throws IOException
-         {
-            if (extensionDescriptor == null)
-            {
+         protected void run(ZipOutputStream zipOut) throws IOException {
+            if (extensionDescriptor == null) {
                final ZipEntry zipEntry = new ZipEntry("foo");
                zipOut.putNextEntry(zipEntry);
                zipOut.closeEntry();
             }
-            else
-            {
+            else {
                final Document extensionDocument = toDocument(extensionDescriptor);
                final ZipEntry zipEntry = new ZipEntry("META-INF/maven/extension.xml");
                zipOut.putNextEntry(zipEntry);
@@ -115,22 +104,19 @@ public class ExtensionDescriptorReaderTest
       }.run();
    }
 
-   private static Document toDocument(final ExtensionDescriptor extensionDescriptor)
-   {
+   private static Document toDocument(final ExtensionDescriptor extensionDescriptor) {
       Document extensionDoc = newDocument();
 
       Element extension = extensionDoc.createElement("extension");
       extensionDoc.appendChild(extension);
 
-      if (!extensionDescriptor.getExportedPackages().isEmpty())
-      {
+      if (!extensionDescriptor.getExportedPackages().isEmpty()) {
          Element exportedPackages = extensionDoc.createElement("exportedPackages");
          extension.appendChild(exportedPackages);
          appendExportedPackages(exportedPackages, extensionDescriptor.getExportedPackages());
       }
 
-      if (!extensionDescriptor.getExportedArtifacts().isEmpty())
-      {
+      if (!extensionDescriptor.getExportedArtifacts().isEmpty()) {
          Element exportedArtifacts = extensionDoc.createElement("exportedArtifacts");
          extension.appendChild(exportedArtifacts);
          appendExportedArtifacts(exportedArtifacts, extensionDescriptor.getExportedArtifacts());
@@ -139,22 +125,18 @@ public class ExtensionDescriptorReaderTest
       return extensionDoc;
    }
 
-   private static void appendExportedArtifacts(Element element, List<String> exportedArtifacts)
-   {
+   private static void appendExportedArtifacts(Element element, List<String> exportedArtifacts) {
       Document document = element.getOwnerDocument();
-      for (String value : exportedArtifacts)
-      {
+      for (String value : exportedArtifacts) {
          Element exportedArtifact = document.createElement("exportedArtifact");
          exportedArtifact.setTextContent(value);
          element.appendChild(exportedArtifact);
       }
    }
 
-   private static void appendExportedPackages(Element element, List<String> exportedPackages)
-   {
+   private static void appendExportedPackages(Element element, List<String> exportedPackages) {
       Document document = element.getOwnerDocument();
-      for (String value : exportedPackages)
-      {
+      for (String value : exportedPackages) {
          Element exportedPackage = document.createElement("exportedPackage");
          exportedPackage.setTextContent(value);
          element.appendChild(exportedPackage);

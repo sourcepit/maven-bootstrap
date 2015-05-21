@@ -26,14 +26,11 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.junit.Test;
-import org.sourcepit.maven.bootstrap.internal.core.PluginConfigurationReader;
 
-public class PluginConfigurationReaderTest
-{
+public class PluginConfigurationReaderTest {
 
    @Test
-   public void test()
-   {
+   public void test() {
       final Dependency foo = new Dependency();
       foo.setGroupId("foo.groupId");
       foo.setArtifactId("foo.groupId");
@@ -71,8 +68,7 @@ public class PluginConfigurationReaderTest
       assertDependencyEquals(bar, extensionList.get(1));
    }
 
-   private static void assertDependencyEquals(Dependency expected, Dependency actual)
-   {
+   private static void assertDependencyEquals(Dependency expected, Dependency actual) {
       assertEquals(expected.getGroupId(), actual.getGroupId());
       assertEquals(expected.getArtifactId(), actual.getArtifactId());
       assertEquals(expected.getVersion(), actual.getVersion());
@@ -83,8 +79,7 @@ public class PluginConfigurationReaderTest
       assertEquals(expected.getSystemPath(), actual.getSystemPath());
    }
 
-   private Xpp3Dom toExtension(Dependency dependency)
-   {
+   private Xpp3Dom toExtension(Dependency dependency) {
       final Xpp3Dom extension = new Xpp3Dom("extension");
 
       final Xpp3Dom groupId = new Xpp3Dom("groupId");
@@ -103,8 +98,7 @@ public class PluginConfigurationReaderTest
       classifier.setValue(dependency.getClassifier());
       extension.addChild(classifier);
 
-      if (!"jar".equals(dependency.getType()))
-      {
+      if (!"jar".equals(dependency.getType())) {
          final Xpp3Dom type = new Xpp3Dom("type");
          type.setValue(dependency.getType());
          extension.addChild(type);

@@ -19,6 +19,5 @@ package org.sourcepit.maven.bootstrap.it;
 import javax.inject.Named;
 
 @Named
-public class TestExtensionExtension implements ExtensionExtension
-{
+public class TestExtensionExtension implements ExtensionExtension {
 }

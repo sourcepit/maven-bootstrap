@@ -29,24 +29,19 @@ import org.apache.maven.execution.MavenExecutionResult;
  * @author Bernd
  */
 @Named
-public class MavenEventSpy extends AbstractEventSpy implements EventSpy
-{
+public class MavenEventSpy extends AbstractEventSpy implements EventSpy {
    @Inject
    private MavenExecutionInterceptor executionInterceptor;
 
    @Override
-   public void onEvent(Object oEvent) throws Exception
-   {
-      if (oEvent instanceof ExecutionEvent)
-      {
+   public void onEvent(Object oEvent) throws Exception {
+      if (oEvent instanceof ExecutionEvent) {
          final ExecutionEvent event = (ExecutionEvent) oEvent;
-         if (ExecutionEvent.Type.SessionEnded == event.getType())
-         {
+         if (ExecutionEvent.Type.SessionEnded == event.getType()) {
             executionInterceptor.onSessionEnded(event.getSession());
          }
       }
-      else if (oEvent instanceof MavenExecutionResult)
-      {
+      else if (oEvent instanceof MavenExecutionResult) {
          executionInterceptor.onMavenExecutionResult((MavenExecutionResult) oEvent);
       }
    }

@@ -28,14 +28,12 @@ import org.apache.maven.execution.MavenSession;
  * @author Bernd
  */
 @Named
-public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant
-{
+public class MavenLifecycleParticipant extends AbstractMavenLifecycleParticipant {
    @Inject
    private MavenExecutionInterceptor executionInterceptor;
 
    @Override
-   public void afterSessionStart(MavenSession session) throws MavenExecutionException
-   {
+   public void afterSessionStart(MavenSession session) throws MavenExecutionException {
       super.afterSessionStart(session);
       executionInterceptor.onAfterSessionStart(session);
    }
