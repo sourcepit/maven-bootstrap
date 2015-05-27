@@ -19,7 +19,7 @@
 	<parent>
 		<groupId>org.sourcepit.tools</groupId>
 		<artifactId>maven-bootstrap</artifactId>
-		<version>0.14.0-SNAPSHOT</version>
+		<version>0.14.0</version>
 	</parent>
 	<artifactId>maven-bootstrap-its</artifactId>
 
