@@ -20,7 +20,7 @@
 	<parent>
 		<groupId>org.sourcepit</groupId>
 		<artifactId>srcpit-parent</artifactId>
-		<version>23</version>
+		<version>24-SNAPSHOT</version>
 	</parent>
 
 	<groupId>org.sourcepit.tools</groupId>
@@ -42,7 +42,7 @@
 	<repositories>
 		<repository>
 			<id>srcpit-public</id>
-			<url>http://nexus.sourcepit.org/content/groups/public/</url>
+			<url>https://nexus.sourcepit.org/content/groups/public/</url>
 		</repository>
 	</repositories>
 
